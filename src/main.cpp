@@ -270,7 +270,7 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
             int none = out_mnv->num_cov - out_mnv->num_sup - out_mnv->discordant[0] - out_mnv->discordant[1];
             out_mnv->odds_ratio = test_odds(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
             out_mnv->odds_phi = test_phi(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
-            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior, settings.bayes_prior_err);
+            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior);
             if(settings.verbose)
             {
                 std::stringstream debugstr;

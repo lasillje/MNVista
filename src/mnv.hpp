@@ -55,7 +55,6 @@ struct run_params
     double bayes_freq;
     double bayes_haplo;
     double bayes_prior;
-    double bayes_prior_err;
     int num_threads;
     int min_read_quality;
     int window_size;
@@ -67,7 +66,6 @@ struct run_params
     float max_snv_vaf;
     float min_vaf;
     bool verbose;
-    bool zero_indexed;
 };
 
 struct snv

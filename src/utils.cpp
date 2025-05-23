@@ -53,7 +53,7 @@ std::string name_mnv(std::vector<snv *> &variants, bool add_ref_alts)
             {
                 strs << "-";
             }
-            strs << (variants[i]->pos + (settings.zero_indexed ? 0 : 1));
+            strs << (variants[i]->pos + 1);
         }
 
         if (add_ref_alts)

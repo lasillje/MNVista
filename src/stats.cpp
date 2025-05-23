@@ -116,7 +116,7 @@ double test_phi(int num_both, int num_a, int num_b, int num_none)
     return static_cast<double>((numerator / denominator));
 }
 
-double test_bayesian(snv* snv_a, snv* snv_b, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv, double prior_err)
+double test_bayesian(snv* snv_a, snv* snv_b, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv)
 {
     /*
         if the amount of reads containing both mutations is 0 we can stop early
