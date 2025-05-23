@@ -84,6 +84,9 @@ An overview of currently available run options with a short description:
 | -F, --min-phi | Minimum Phi-coefficient for MNVs|
 | -C, --black-list | List of MNVs to be ignored|
 | -R, --read-length | Expected length of reads in data (bp)|  
+| -E, --bayes-error-freq | Minimum expected reliable SNV VAF |
+| -H, --bayes-mnv-freq | Minimum expected MNV VAF |
+| -P, --bayes-prior-mnv | Bayes prior for an MNV being real |
 
 
 For a comprehensive list of run options and default values, use ```MNVista -h```
@@ -110,7 +113,7 @@ MNVista has 4 outputs:
 | PHI | Phi-coefficient of MNV |
 | COEFFICIENT_VARIATION | CV of the MNV VAF |
 | BAYESIAN | Bayesian probability of an MNV |
-| FRACTION_MUTATED | Fraction of mutated reads containing all SNVs of MNV|
+| JACCARD | Fraction of mutated reads containing all SNVs of MNV|
 | DISCORDANT | Number of reads that contain only one SNV (per SNV)| 
 | INDIVIDUAL_MUTATED| VRD of each SNV|
 |SIZE_MNV | Number of SNVs present in an MNV|
