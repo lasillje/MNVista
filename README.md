@@ -22,6 +22,8 @@ The following chapters will make use of various abbreviations, if you are not fa
 ## Dependencies
 
 MNVista is written in C++23 using HTSlib 1.19 for sequence data parsing and argparse for commandline functionality.
+  - HTSlib
+  - OpenSSL (libssl-dev)
 
 ## Building
 
