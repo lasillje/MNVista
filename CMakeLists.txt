@@ -50,10 +50,10 @@ add_executable(MNVista ${SOURCES})
 set_target_properties(MNVista PROPERTIES OUTPUT_NAME "MNVista" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
 #Specifically set paths for OpenSSL for HTSlib, can be removed
-set_target_properties(MNVista PROPERTIES 
-    BUILD_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
-    INSTALL_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
-)
+#set_target_properties(MNVista PROPERTIES 
+#    BUILD_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
+#    INSTALL_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
+#)
 
 # Link HTSlib, argparse
 find_package(OpenSSL REQUIRED)
