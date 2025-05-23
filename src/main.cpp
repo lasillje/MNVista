@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2025 Laurens Sillje
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include <cstring>
 #include <cmath>
 #include <iostream>
@@ -27,22 +51,21 @@ bool operator==(const mnv& lhs, const mnv& rhs)
     return lhs.name == rhs.name;
 };
 
-run_params settings;
-
-static std::mutex snv_mtx;
-
 std::unordered_set<std::string> pair_blacklist;
-bool blacklist_enable = false;
-
-std::vector<snv> all_snvs;
 
 std::set<int> chrom_contigs;
+std::set<std::string> vcf_contigs;
 
-int total_windows = 0;
-
+std::vector<snv> all_snvs;
 std::vector<snv_window> all_snv_windows;
+
 mnv_window* all_mnv_windows;
 mnv_window* all_mnv_filtered;
+
+int total_windows = 0;
+bool blacklist_enable = false;
+
+run_params settings;
 
 /*
     Reads input VCF list and stores it into variant_list
@@ -88,9 +111,6 @@ void read_vcf(std::vector<snv> &variant_list, std::string in_vcf, std::string in
         {
             continue;
         }
-
-        chrom_contigs.insert(tid);
-        v.chrom_id = tid;
 
         if (std::strlen(rec->d.allele[0]) != 1 || std::strlen(rec->d.allele[1]) != 1)
         {
@@ -149,6 +169,10 @@ void read_vcf(std::vector<snv> &variant_list, std::string in_vcf, std::string in
             }
             continue;
         }
+
+        vcf_contigs.insert(v.chrom_name);
+        chrom_contigs.insert(tid);
+        v.chrom_id = tid;
 
         variant_list.push_back(v);
     }
@@ -246,7 +270,13 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
             int none = out_mnv->num_cov - out_mnv->num_sup - out_mnv->discordant[0] - out_mnv->discordant[1];
             out_mnv->odds_ratio = test_odds(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
             out_mnv->odds_phi = test_phi(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
-            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, out_mnv->rsd, out_mnv->frac);
+            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior, settings.bayes_prior_err);
+            if(settings.verbose)
+            {
+                std::stringstream debugstr;
+                debugstr << out_mnv->bayesian_prob << "\n";
+                std::cerr << debugstr.str();
+            }
         }
 
         if (out_mnv->odds_phi < settings.min_phi || out_mnv->odds_ratio < settings.odds_ratio || out_mnv->bayesian_prob < settings.min_bayesian || out_mnv->num_sup < settings.min_mrd_mnv || out_mnv->vaf < settings.min_vaf)
@@ -498,11 +528,11 @@ int snv_relative_pos(bam1_t* b, int snv_pos)
 }
 
 /*
-    Loads the reads for a window of SNVs locally per thread
-    As the SNVs are stored as pointers globally, mutating them is not thread-safe
-    As such, this function runs on a local thread-safe SNV list
+    Loads reads for SNVs in a window
+    Reads are stored as an unsigned integer hash based on read name
+    Read names should be unique!
 */
-void load_window_reads_local(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int chrom_id, snv_window& window, std::vector<snv>& snv_cache)
+void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int chrom_id, snv_window& window)
 {
     if(chrom_id < 0) return;
     
@@ -511,18 +541,19 @@ void load_window_reads_local(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_id
     bam1_t* bam_read = bam_init1();
     int count = 0;
     int dup_counter = 0;
-    for(snv& v : snv_cache)
+    for(snv* v : window)
     {
-    
-      v.loaded_reads = 1;
+      int pos = v->pos;
+
+      v->loaded_reads = 1;
   
-      hts_itr_t* iter = sam_itr_queryi(bam_idx, chrom_id, v.pos, v.pos + 1);
+      hts_itr_t* iter = sam_itr_queryi(bam_idx, chrom_id, pos, pos + 1);
       if(!iter) return;
       while(sam_itr_next(bam, iter, bam_read) >= 0)
       {
         if(bam_read->core.qual < settings.min_read_quality) continue;
         
-        int relative_pos = snv_relative_pos(bam_read, v.pos);
+        int relative_pos = snv_relative_pos(bam_read, pos);
         if(relative_pos < 0 || relative_pos >= bam_read->core.l_qseq) continue;
 
         std::string read_name = bam_get_qname(bam_read);
@@ -530,43 +561,43 @@ void load_window_reads_local(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_id
         uint8_t* seq = bam_get_seq(bam_read);
         unsigned int index = (unsigned int)hasher(read_name);
 
-        v.covering_hashes.push_back(index);
+        v->covering_hashes.push_back(index);
         char base = seq_nt16_str[bam_seqi(seq, relative_pos)];
 
-        if(base == v.alt)
+        if(base == v->alt)
         {
             uint8_t* quals = bam_get_qual(bam_read);
             uint8_t q = quals[relative_pos];
             if(q != 255)
             {
-                v.base_qualities.push_back(quals[relative_pos]);
+                v->base_qualities.push_back(quals[relative_pos]);
             }
-            v.supporting_hashes.push_back(index);
+            v->supporting_hashes.push_back(index);
         }
   
         count++;
       }
 
-      if(v.base_qualities.size() > 1)
+      if(v->base_qualities.size() > 1)
       {
-        std::sort(v.base_qualities.begin(), v.base_qualities.end());
-        int mid = v.base_qualities.size() / 2;
+        std::sort(v->base_qualities.begin(), v->base_qualities.end());
+        int mid = v->base_qualities.size() / 2;
         mid = (mid % 2 == 0 ? mid : mid - 1);
-        int qual = (int)v.base_qualities[mid];
-        v.phred_qual = ((float)qual / 10.0f); 
+        int qual = (int)v->base_qualities[mid];
+        v->phred_qual = ((float)-qual / 10.0f); 
 
       } else
       {
-        v.phred_qual = 0.0f;
+        v->phred_qual = 0.0f;
       }
 
-      if(v.supporting_hashes.size() > 0 && v.covering_hashes.size() > 0)
+      if(v->supporting_hashes.size() > 0 && v->covering_hashes.size() > 0)
       {
-        v.vaf = (float)v.supporting_hashes.size() / (float)v.covering_hashes.size();
+        v->vaf = (float)v->supporting_hashes.size() / (float)v->covering_hashes.size();
       }
 
-      v.mrd = v.supporting_hashes.size();
-      v.dp = v.covering_hashes.size();
+      v->mrd = v->supporting_hashes.size();
+      v->dp = v->covering_hashes.size();
   
       bam_itr_destroy(iter);
     }
@@ -574,10 +605,7 @@ void load_window_reads_local(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_id
 }
 
 /*
-    Completely parses a whole window
-    This function is ran in parallel per thread, as such the SNVs that are present in this window first have to be recreated locally per thread
-    NOTE: With the current window creation approach this is not necessary anymore, however it is still safer to do it this way, at the cost of performance
-    Doing this makes working on them thread-safe, and after all the tests are done we can lock the list of SNV pointers and safely mutate them based on the results
+    Parses a whole SNV window into MNVs
 */
 mnv_window parse_window(snv_window& window, mnv_window& filtered, std::string& in_bam, int chromosome, int window_id)
 {
@@ -603,54 +631,35 @@ mnv_window parse_window(snv_window& window, mnv_window& filtered, std::string& i
 
     std::unordered_set<mnv, mnv_hash> cached_pairs;
 
-    std::vector<snv> local_snv_cache;
+    //Pre-allocate expected number of supporting/covering reads
+    for(snv* v : window)
+    {
+        v->supporting_hashes.reserve(1024);
+        v->covering_hashes.reserve(24576);
+    }
+
+    load_window_reads(bam, bam_hdr, bam_idx, chromosome, window);
+    
+    results = make_all_phases_window(window, cached_pairs, filtered, settings.mnv_size <= 1 ? window.size() : settings.mnv_size, window_id);
 
     for(snv* v : window)
     {
-        snv local_snv = *v;
-        local_snv_cache.push_back(local_snv);
+        if(v->loaded_reads && (!v->supporting_hashes.empty() || !v->covering_hashes.empty()))
+        {
+            v->supporting_hashes.clear();
+            v->covering_hashes.clear();
+            v->supporting_hashes = std::vector<unsigned int>(0);
+            v->covering_hashes = std::vector<unsigned int>(0);
+        }
     }
-
-    for(snv& v : local_snv_cache)
-    {
-        v.supporting_hashes.reserve(1024);
-        v.covering_hashes.reserve(32384);
-    }
-
-    load_window_reads_local(bam, bam_hdr, bam_idx, chromosome, window, local_snv_cache);
     
-    {
-        std::lock_guard<std::mutex> lock(snv_mtx);
-        int i = 0;
-        for(snv* v : window)
-        {
-            if(!v->loaded_reads)
-            {
-                *v = local_snv_cache[i];
-                i++;
-            }
-        }
-        results = make_all_phases_window(window, cached_pairs, filtered, settings.mnv_size <= 1 ? window.size() : settings.mnv_size, window_id);
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(snv_mtx);
-        int i = 0;
-        for(snv* v : window)
-        {
-            if(v->loaded_reads && (!v->supporting_hashes.empty() || !v->covering_hashes.empty()))
-            {
-                v->supporting_hashes.clear();
-                v->covering_hashes.clear();
-                v->supporting_hashes = std::vector<unsigned int>(0);
-                v->covering_hashes = std::vector<unsigned int>(0);
-            }
-        }
-    }
-
     sam_hdr_destroy(bam_hdr);
     hts_idx_destroy(bam_idx);
     sam_close(bam);
+
+    std::stringstream strstr;
+    strstr << "Finished window " << window_id << "(chr_id: " << chromosome << "). Total MNVs: " << results.size() << ", Total cached pairs: " << cached_pairs.size() << "\n";
+    log_info(strstr.str());
 
     return results;
 }
@@ -669,6 +678,7 @@ void* process_window(void* arg)
     {
         all_mnv_windows[window_id] = parse_window(all_snv_windows[window_id], all_mnv_filtered[window_id], settings.in_bam, chrom_id, window_id);
     }
+
     return arg;
 }
 
@@ -718,10 +728,9 @@ int main(int argc, char *argv[])
     program.add_argument("-Q", "--read-quality").default_value(25).help("Only consider reads with an equal or higher mapping quality than the specified value.").store_into(settings.min_read_quality);
     program.add_argument("-V", "--verbose").default_value(false).help("Enables additional logging wile the program is running").store_into(settings.verbose);
     program.add_argument("-T", "--threads").default_value(4).help("Specifies the amount of threads the program should use. A higher number means an increase in work paralellization.").store_into(settings.num_threads);
-    program.add_argument("-I", "--zero-indexed").default_value(false).help("Specifies whether output MNVs should have their position be 0-indexed (BAM-specification) or 1-indexed (VCF-specificaton).").store_into(settings.zero_indexed);
-    program.add_argument("-A", "--min-af-mnv").default_value(0.0001f).help("Minimum VAF for an MNV to be considered. MNVs with a lower VAF than this will not be output.").store_into(settings.min_vaf);
-    program.add_argument("-S", "--min-mrd-snv").default_value(5).help("Minimum MRD for a SNV to be considered. SNVs with a lower MRD than this will be filtered prior to MNV analysis.").store_into(settings.min_mrd_snv);
-    program.add_argument("-N", "--min-mrd-mnv").default_value(3).help("Minimum MRD for a MNV to be considered. MNVs with a lower MRD than this will not be output.").store_into(settings.min_mrd_mnv);
+    program.add_argument("-A", "--min-vaf-mnv").default_value(0.0001f).help("Minimum VAF for an MNV to be considered. MNVs with a lower VAF than this will not be output.").store_into(settings.min_vaf);
+    program.add_argument("-S", "--min-vrd-snv").default_value(5).help("Minimum MRD for a SNV to be considered. SNVs with a lower MRD than this will be filtered prior to MNV analysis.").store_into(settings.min_mrd_snv);
+    program.add_argument("-N", "--min-vrd-mnv").default_value(3).help("Minimum MRD for a MNV to be considered. MNVs with a lower MRD than this will not be output.").store_into(settings.min_mrd_mnv);
     program.add_argument("-Y", "--min-vaf-snv").default_value(0.0f).help("Minimum VAF for a SNV to be considered. SNVs with a lower VAF than this will be filtered prior to MNV analysis.").store_into(settings.min_snv_vaf);
     program.add_argument("-Z", "--max-vaf-snv").default_value(1.0f).help("Maximum VAF for a SNV to be considered. SNVs with a higher VAF than this will be filtered prior to MNV analysis.").store_into(settings.max_snv_vaf);
     program.add_argument("-L", "--min-log-odds").default_value(2.0).help("MNVs with a log odds ratio higher than the specified value will be considered.").store_into(settings.odds_ratio);
@@ -729,6 +738,10 @@ int main(int argc, char *argv[])
     program.add_argument("-F", "--min-phi").default_value(0.5).help("Minimum Phi-coefficient for a pair of SNVs to be considered. Pairs with a lower Phi-coefficient than the specified value will be discarded.").store_into(settings.min_phi);
     program.add_argument("-C", "--black-list").help("Path to a file containing a list of MNV pairs that should be ignored while making MNVs.").store_into(settings.blacklist_path);
     program.add_argument("-R", "--read-length").default_value(150).help("The maximum length in bp a read can be. SNVs will not be paired if their distance is larger than this value.").store_into(settings.read_length);
+
+    program.add_argument("-E", "--bayes-error-freq").default_value(0.001).help("Minimum expected SNV VAF at which SNVs can still reliably be called. By default set to an error rate of 0.001 (Q30).").store_into(settings.bayes_freq);
+    program.add_argument("-H", "--bayes-mnv-freq").default_value(0.01).help("Minimum expected MNV VAF at which you still expect to find MNVs. By default set to 0.01 (1%  VAF)." ).store_into(settings.bayes_haplo);
+    program.add_argument("-P", "--bayes-prior-mnv").default_value(0.5).help("Prior used for the Bayesian model. Change this to make SNV pairs less/more likely to be designated as real MNV. Default is 0.5 (no effect)").store_into(settings.bayes_prior);
 
     try
     {
@@ -766,11 +779,21 @@ int main(int argc, char *argv[])
         std::cerr << err.what() << std::endl;
     }
 
+    /*
+        Print the used command in the logs
+    */
     std::stringstream cmd_info;
-    cmd_info << "MNVista " << settings.in_bam << " " << settings.in_vcf << " " << settings.out_path << "-O " << settings.out_name << " -W " << settings.window_size << " -M " << settings.mnv_size << " -Q " << settings.min_read_quality << " -T " << settings.num_threads << " -B " << settings.min_bayesian << " -S " << settings.min_mrd_snv;
+    for(int i = 0; i < argc; i++)
+    {
+        cmd_info << argv[i] << " ";
+    }
     log_info(cmd_info.str());
 
     auto start = std::chrono::steady_clock::now();
+
+    /*
+        Start MNVista analysis
+    */
 
     read_vcf(all_snvs, settings.in_vcf, settings.in_bam);
 
@@ -783,13 +806,18 @@ int main(int argc, char *argv[])
 
     total_windows = all_snv_windows.size();
     log_info("Created " + std::to_string(total_windows) + " total windows\n");
-
+    
     all_mnv_windows = (mnv_window*)calloc(total_windows, sizeof(mnv_window));
     all_mnv_filtered = (mnv_window*)calloc(total_windows, sizeof(mnv_window));
+
+    /*
+        Set up multithreading based on input thread count setting
+    */
 
     hts_tpool *p = hts_tpool_init(settings.num_threads);
     hts_tpool_process *q = hts_tpool_process_init(p, total_windows, 1);
 
+    //Malloc array of packed chromosome/window IDs for each window
     uint32_t* packed_ids = (uint32_t*) calloc(total_windows, sizeof(uint32_t));
 
     log_info("Starting processing of windows...\n");
@@ -798,6 +826,8 @@ int main(int argc, char *argv[])
     {
         if (!all_snv_windows[i].empty())
         {
+            //Pack the chromosome and window ID into a single unsigned integer to pass into the process_window function
+            //Integer is unpacked within the process_window function again
             uint32_t chrom = (uint32_t)all_snv_windows[i][0]->chrom_id;
             uint32_t window_id = (uint32_t)i;
             packed_ids[i] = (chrom << 16) | (window_id & 0xFFFF);
@@ -809,6 +839,11 @@ int main(int argc, char *argv[])
     hts_tpool_process_destroy(q);
     hts_tpool_destroy(p);
 
+    //Write outputs
+    write_mnv_list(all_mnv_windows, total_windows, false);
+    write_mnv_list(all_mnv_filtered, total_windows, true);
+    write_vcf_list(all_mnv_windows, vcf_contigs, total_windows);
+
     auto end = std::chrono::steady_clock::now();
     auto diff = end - start;
 
@@ -816,14 +851,12 @@ int main(int argc, char *argv[])
     double minutes = elapsed_seconds.count() / 60.0;
     log_info("Finished! Total execution time: " + std::to_string(minutes) + " minute(s).\n");
 
-    write_mnv_list(all_mnv_windows, total_windows, false);
-    write_mnv_list(all_mnv_filtered, total_windows, true);
-    write_vcf_list(all_mnv_windows, total_windows);
-
     free(all_mnv_windows);
     free(all_mnv_filtered);
+    free(packed_ids);
 
     settings.log_stream.close();
 
+    std::cout << "[MNVista] Finished run. \n";
     return 0;
 }

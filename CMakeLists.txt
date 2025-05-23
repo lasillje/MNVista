@@ -5,10 +5,8 @@ project(MNVista LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# set(CMAKE_BUILD_TYPE Release)
 
 # Find the HTSlib include directory by searching for the header file.
-# Adjust "htslib/hts.h" if your header is located elsewhere.
 find_path(HTSLIB_INCLUDE_DIR
   NAMES htslib/hts.h
   PATHS ENV(HTSLIB_ROOT) ${HTSLIB_INCLUDE_DIR} /usr/include /usr/local/include
@@ -35,7 +33,7 @@ message(STATUS "Found HTSlib library: ${HTSLIB_LIBRARY}")
 # Add HTSlib include directories
 include_directories(${HTSLIB_INCLUDE_DIR})
 
-#Add argparse
+# Add argparse
 include(FetchContent)
 FetchContent_Declare(
     argparse
@@ -43,6 +41,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(argparse)
 
+# Include src files
 include_directories(src)
 file(GLOB SOURCES "src/*.cpp")
 
@@ -50,11 +49,12 @@ add_executable(MNVista ${SOURCES})
 
 set_target_properties(MNVista PROPERTIES OUTPUT_NAME "MNVista" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 
+#Specifically set paths for OpenSSL for HTSlib, can be removed
 set_target_properties(MNVista PROPERTIES 
     BUILD_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
     INSTALL_RPATH "/apps/software/OpenSSL/1.1/lib;/apps/software/HTSlib/1.19.1-GCCcore-11.3.0/lib"
 )
 
-#Link HTSlib, argparse
+# Link HTSlib, argparse
 find_package(OpenSSL REQUIRED)
 target_link_libraries(MNVista ${HTSLIB_LIBRARY} OpenSSL::Crypto argparse)
