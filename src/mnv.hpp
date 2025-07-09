@@ -55,6 +55,7 @@ struct run_params
     double bayes_freq;
     double bayes_haplo;
     double bayes_prior;
+    double jaccard;
     int num_threads;
     int min_read_quality;
     int window_size;
@@ -66,15 +67,32 @@ struct run_params
     float max_snv_vaf;
     float min_vaf;
     bool verbose;
+    bool skip_filtered;
+};
+
+struct read
+{
+    std::string read_name;
+    unsigned char quality;
+
+    bool operator < (read const& other) const noexcept
+    {
+      return read_name < other.read_name;
+    }
+
+    bool operator == (read const& other) const noexcept
+    {
+      return read_name == other.read_name;
+    }
 };
 
 struct snv
 {
-    std::vector<unsigned int> supporting_hashes;
-    std::vector<unsigned int> covering_hashes;
-    std::vector<unsigned int> base_qualities;
+    std::vector<read> supporting_hashes;
+    std::vector<read> covering_hashes;
+    //std::vector<unsigned int> base_qualities;
     std::string chrom_name;
-    double phred_qual;
+    double base_qual_sum;
     int chrom_id;
     unsigned int pos;
     unsigned int mrd;
@@ -89,6 +107,8 @@ struct mnv
 {
     std::string name;
     std::vector<unsigned short> discordant;
+    std::vector<float> qualities;
+    std::vector<float> discordant_qualities;
     snv_window variants;
     double odds_ratio;
     double odds_phi;

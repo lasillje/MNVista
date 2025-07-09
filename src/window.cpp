@@ -96,7 +96,7 @@ void make_windows_chromosome(std::vector<snv> &variant_list, std::vector<snv_win
         return;
     } else
     {
-        log_info("Found " + std::to_string(windows.size()) + " windows for " + cur_chrom_name + "\n");
+        log_info("Found " + std::to_string(windows.size()) + " windows for " + cur_chrom_name);
     }
 
     std::sort(windows.begin(), windows.end(), [](const std::vector<snv *> &a, const std::vector<snv *> &b)

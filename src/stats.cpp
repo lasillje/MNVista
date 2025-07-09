@@ -106,23 +106,23 @@ double test_phi(int num_both, int num_a, int num_b, int num_none)
     long double numerator = (alpha * delta) - (beta * gamma);
     long double denominator = std::sqrt(((alpha + beta)*(alpha + gamma)*(beta + delta)*(gamma + delta)));
 
-    if(settings.verbose)
-    {
-        std::stringstream debugstr;
-        debugstr << "PHI A/B/C/D/NUM/DEM/RES: " << alpha << ", " << beta << ", " << gamma << ", " << delta << ", " << numerator << ", " << denominator << ", " << (numerator / denominator) << "\n";
-        std::cerr << debugstr.str();
-    }
-
     return static_cast<double>((numerator / denominator));
 }
 
-double test_bayesian(snv* snv_a, snv* snv_b, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv)
+double softmax(double A, double B)
 {
-    /*
-        if the amount of reads containing both mutations is 0 we can stop early
-        as the SNVs are mutually exclusive
-    */
-    if(num_both == 0)
+    double M = std::max(A, B);
+
+    double eA = std::pow(10.0, A - M);
+    double eB = std::pow(10.0, B - M);
+
+    return M + std::log10(eA + eB);
+}
+
+
+double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv)
+{
+    if(num_both == 0 || cur_mnv->qualities.size() < 2)
     {
         return 0.0;
     }
@@ -132,49 +132,47 @@ double test_bayesian(snv* snv_a, snv* snv_b, int num_both, int num_a, int num_b,
     double C = (double)num_b; //Read counts for only alt allele of snv_b
     double D = (double)num_none; //Read counts for both ref allele
 
-    //Smoothing factor to prevent overflow/underflow
-    //And to provide a smooth range of values.
-    //The log likelihoods are calculated using raw read count integers to keep resolution
-    //Maybe use long double instead of this?
-    double a = 1.0 / (A + B + C);
+    double e_b = cur_mnv->discordant_qualities[0];
+    double e_c = cur_mnv->discordant_qualities[1];
     
-    double eps_a = std::pow(10, snv_a->phred_qual); //Error rate for SNV a based on base quality. snv_a->phred_qual is equal to -Q / 10, in which Q is its base quality.
-    double eps_b = std::pow(10, snv_b->phred_qual); //Same as above line but for snv_b
+    double e_a1 = cur_mnv->qualities[0];
+    double e_a2 = cur_mnv->qualities[1];
 
-    double log_eps_a = std::log(eps_a);
-    double log_eps_b = std::log(eps_b);
-
-    //Error rate for A + B (all alt alleles for snv_a)
-    double n_alt_a = A + B;
-    double ll_a = n_alt_a * log_eps_a;
-
-    //Error rate for A + C(all alt allels for snv_b)
-    double n_alt_b = A + C;
-    double ll_b = n_alt_b * log_eps_b;
+    double T = A + B + C + D;
     
-    //Calculate chance for Model 1 (the two SNVs make a pair)
-    double p_m1 =  A * std::log(f_haplo) + D * std::log(1.0 - f_haplo) + (B * log_eps_a + C * log_eps_b);
+    double fa = A / T;
 
-    //Calculate chance for Model 2A, Model 2B (Either one SNV is real and the other is caused by error)
-    //Also consider D into this model in order to account for all available data
-    double p_m2a = std::max((A + B) * std::log(f_error), ll_a) + ll_b + D * std::log(1-f_error);
-    double p_m2b = std::max((A + C) * std::log(f_error), ll_b) + ll_a + D * std::log(1-f_error);
-    double p_m2 = std::max(p_m2a, p_m2b);
+    double fa1 = (A + B + 1) / T;
+    double fa2 = (A + C + 1) / T;
+    
+    double fr1 = (C + D + 1) / T;
+    double fr2 = (B + D + 1) / T;
 
-    //Need to apply smoothing here otherwise the posterior collapses to either 0 or 1 due
-    //to large read counts. Log likelihoods can reach up to -1000, which if put into the exponent
-    //results in a number that cannot be put into a 64-bit floating point number.
-    double lm1 = std::exp(p_m1 * a) * prior_mnv;
-    double lm2 = std::exp(p_m2 * a) * (1.0 - prior_mnv);
+    double p_m1 = A * std::log10(fa) + D * std::log10(1.0 - fa) - e_b - e_c;
+    
+    double p_m2b = softmax(-e_a1 - e_b, ((A+B) * std::log10(fa1)) + ((C+D) * std::log10(fr1)));
+    double p_m2c = softmax(-e_a2 - e_c, ((A+C) * std::log10(fa2)) + ((B+D) * std::log10(fr2)));
 
-    double denom = (lm1 + lm2);
-    double post = lm1 / denom;
+    double p_m2 = p_m2b + p_m2c;
 
-    if(settings.verbose)
+    double log_prior = std::log10(prior_mnv);
+    double log_not_prior = std::log10(1.0 - prior_mnv);
+
+    double f_p_m1 = p_m1 + log_prior;
+    double f_p_m2 = p_m2 + log_not_prior;
+    double diff = f_p_m2 - f_p_m1;
+    
+    double post = 0.0;
+
+    if(diff > 100.0)
     {
-        std::stringstream debugstr;
-        debugstr << snv_a->chrom_name << ":" << snv_a->pos << "-" << snv_b->pos << " -  A, B, C: " << A << ", " << B << ", " << C << " STATS: " << p_m1 << " , " << p_m2 << " (" << p_m2a << " , " << p_m2b << ")" << " ,  M1/M2/DENOM/POST: " << lm1 << " , " << lm2 << " , " << denom << " , " << post;
-        log_info(debugstr.str());
+        post = 0.0;
+    } else if (diff < -100.0)
+    {
+        post = 1.0;
+    } else
+    {
+        post = 1.0 / (1.0 + std::pow(10.0, diff));
     }
 
     return post;

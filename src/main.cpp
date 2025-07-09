@@ -200,16 +200,16 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
     std::sort(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
     std::sort(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
 
-    std::set<unsigned int> intersect_sup(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
-    std::set<unsigned int> intersect_cov(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
+    std::set<read> intersect_sup(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
+    std::set<read> intersect_cov(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
 
     for (int i = 1; i < num_variants; i++)
     {
         std::sort(s[i]->covering_hashes.begin(), s[i]->covering_hashes.end());
         std::sort(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
 
-        std::set<unsigned int> temp_sup;
-        std::set<unsigned int> temp_cov;
+        std::set<read> temp_sup;
+        std::set<read> temp_cov;
 
         std::set_intersection(intersect_sup.begin(), intersect_sup.end(), s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end(), std::inserter(temp_sup, temp_sup.begin()));
         std::set_intersection(intersect_cov.begin(), intersect_cov.end(), s[i]->covering_hashes.begin(), s[i]->covering_hashes.end(), std::inserter(temp_cov, temp_cov.begin()));
@@ -230,21 +230,44 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
 
     for (int i = 0; i < num_variants; i++)
     {
-        std::set<unsigned int> onlyMyReads(intersect_cov.begin(), intersect_cov.end());
-        std::set<unsigned int> myReads(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
+        std::set<read> onlyMyReads(intersect_cov.begin(), intersect_cov.end());
+        std::set<read> myReads(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
 
-        std::erase_if(onlyMyReads, [&myReads](unsigned int r)
+        std::erase_if(onlyMyReads, [&myReads](read r)
                       { return !myReads.contains(r); });
 
         for (int j = 0; j < num_variants; j++)
         {
             if (j == i)
                 continue;
-            std::set<unsigned int> otherReads(s[j]->supporting_hashes.begin(), s[j]->supporting_hashes.end());
-            std::erase_if(onlyMyReads, [&otherReads](unsigned int r)
+            std::set<read> otherReads(s[j]->supporting_hashes.begin(), s[j]->supporting_hashes.end());
+            std::erase_if(onlyMyReads, [&otherReads](read r)
                           { return otherReads.contains(r); });
         }
 
+        float sum_quality = 0.0;
+        for(auto& read : onlyMyReads)
+        {
+            int q = (int) read.quality;
+            float base_qual = (float)q / 10.0f;
+            sum_quality += base_qual;
+        }
+
+        float concordant_quality = 0.0f;
+        for(auto& read1 : intersect_sup)
+        {
+            for(auto& read2 : s[i]->supporting_hashes)
+            {
+                if(read1.read_name == read2.read_name)
+                {
+                    int q = (int)read2.quality;
+                    concordant_quality += (float)q / 10.0f;
+                }
+            }
+        }
+
+        out_mnv->qualities.push_back(concordant_quality);
+        out_mnv->discordant_qualities.push_back(sum_quality);
         out_mnv->discordant.push_back(onlyMyReads.size());
         numTotalSolo += onlyMyReads.size();
     }
@@ -270,7 +293,7 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
             int none = out_mnv->num_cov - out_mnv->num_sup - out_mnv->discordant[0] - out_mnv->discordant[1];
             out_mnv->odds_ratio = test_odds(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
             out_mnv->odds_phi = test_phi(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
-            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior);
+            out_mnv->bayesian_prob = test_bayesian(s[0], s[1], out_mnv, out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior);
             if(settings.verbose)
             {
                 std::stringstream debugstr;
@@ -279,7 +302,7 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
             }
         }
 
-        if (out_mnv->odds_phi < settings.min_phi || out_mnv->odds_ratio < settings.odds_ratio || out_mnv->bayesian_prob < settings.min_bayesian || out_mnv->num_sup < settings.min_mrd_mnv || out_mnv->vaf < settings.min_vaf)
+        if (out_mnv->frac < settings.jaccard || out_mnv->odds_phi < settings.min_phi || out_mnv->odds_ratio < settings.odds_ratio || out_mnv->bayesian_prob < settings.min_bayesian || out_mnv->num_sup < settings.min_mrd_mnv || out_mnv->vaf < settings.min_vaf)
         {
             return MNV_FAILED_FILTERS;
         }
@@ -322,6 +345,9 @@ int test_doublet(snv *a, snv *b, mnv *out_mnv, std::unordered_set<mnv, mnv_hash>
     {
         if(pair_blacklist.find(temp.name) != pair_blacklist.end())
         {
+            std::stringstream bstr;
+            bstr << "Found blacklisted pair at " << temp.name << ", skipping.";
+            log_info(bstr.str());
             return 1;
         }
     }
@@ -336,6 +362,7 @@ int test_doublet(snv *a, snv *b, mnv *out_mnv, std::unordered_set<mnv, mnv_hash>
 
     int res = test_snv(temp.variants, 2, &temp);
     temp.result = res;
+    
     *out_mnv = temp;
 
     return res;
@@ -414,7 +441,7 @@ mnv_window parse_window_to_doublets(snv_window& window, std::unordered_set<mnv, 
         if(result == 0)
         {
           output_mnv.push_back(m);
-        } else if(result == 2)
+        } else if(result == 2 && !settings.skip_filtered)
         {
             filtered.push_back(m);
         }
@@ -448,7 +475,7 @@ mnv_window parse_window_to_next_phase(mnv_window& mnv_w, snv_window& snv_w, std:
       {
         int result = 0;
         mnv m = make_next_phase(&mnv_w[i], snv_w[j], &result, pair_cache);
-        if(result == 2)
+        if(result == 2 && !settings.skip_filtered)
         {
             filtered.push_back(m);
         }
@@ -544,7 +571,8 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
     for(snv* v : window)
     {
       int pos = v->pos;
-
+      
+      v->base_qual_sum = 0.0;
       v->loaded_reads = 1;
   
       hts_itr_t* iter = sam_itr_queryi(bam_idx, chrom_id, pos, pos + 1);
@@ -559,37 +587,42 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
         std::string read_name = bam_get_qname(bam_read);
         
         uint8_t* seq = bam_get_seq(bam_read);
-        unsigned int index = (unsigned int)hasher(read_name);
 
-        v->covering_hashes.push_back(index);
+        uint8_t* quals = bam_get_qual(bam_read);
+        uint8_t q = quals[relative_pos];
+        
+        read r;
+        r.read_name = read_name;
+        r.quality = q;
+        //unsigned int index = (unsigned int)hasher(read_name);
+
+        v->covering_hashes.push_back(r);
         char base = seq_nt16_str[bam_seqi(seq, relative_pos)];
 
         if(base == v->alt)
         {
-            uint8_t* quals = bam_get_qual(bam_read);
-            uint8_t q = quals[relative_pos];
             if(q != 255)
             {
-                v->base_qualities.push_back(quals[relative_pos]);
+                v->base_qual_sum += ((float)(int)q / 10);
             }
-            v->supporting_hashes.push_back(index);
+            v->supporting_hashes.push_back(r);
         }
   
         count++;
       }
 
-      if(v->base_qualities.size() > 1)
-      {
-        std::sort(v->base_qualities.begin(), v->base_qualities.end());
-        int mid = v->base_qualities.size() / 2;
-        mid = (mid % 2 == 0 ? mid : mid - 1);
-        int qual = (int)v->base_qualities[mid];
-        v->phred_qual = ((float)-qual / 10.0f); 
+    //   if(v->base_qualities.size() > 1)
+    //   {
+    //     std::sort(v->base_qualities.begin(), v->base_qualities.end());
+    //     int mid = v->base_qualities.size() / 2;
+    //     mid = (mid % 2 == 0 ? mid : mid - 1);
+    //     int qual = (int)v->base_qualities[mid];
+    //     v->phred_qual = ((float)-qual / 10.0f); 
 
-      } else
-      {
-        v->phred_qual = 0.0f;
-      }
+    //   } else
+    //   {
+    //     v->phred_qual = 0.0f;
+    //   }
 
       if(v->supporting_hashes.size() > 0 && v->covering_hashes.size() > 0)
       {
@@ -648,8 +681,8 @@ mnv_window parse_window(snv_window& window, mnv_window& filtered, std::string& i
         {
             v->supporting_hashes.clear();
             v->covering_hashes.clear();
-            v->supporting_hashes = std::vector<unsigned int>(0);
-            v->covering_hashes = std::vector<unsigned int>(0);
+            v->supporting_hashes = std::vector<read>(0);
+            v->covering_hashes = std::vector<read>(0);
         }
     }
     
@@ -658,7 +691,7 @@ mnv_window parse_window(snv_window& window, mnv_window& filtered, std::string& i
     sam_close(bam);
 
     std::stringstream strstr;
-    strstr << "Finished window " << window_id << "(chr_id: " << chromosome << "). Total MNVs: " << results.size() << ", Total cached pairs: " << cached_pairs.size() << "\n";
+    strstr << "Finished window " << window_id << "(chr_id: " << chromosome << "). Total MNVs: " << results.size() << ", Total cached pairs: " << cached_pairs.size();
     log_info(strstr.str());
 
     return results;
@@ -687,7 +720,7 @@ void* process_window(void* arg)
 */
 void load_blacklist(std::string file_path)
 {
-
+    log_info("Blacklist specified, trying to load it.");
     std::ifstream blacklist_file(file_path);
     if(!blacklist_file)
     {
@@ -710,7 +743,15 @@ void load_blacklist(std::string file_path)
 
     blacklist_file.close();
 
-    log_info("Found " + std::to_string(pair_blacklist.size()) + " pairs to be blacklisted.\n");
+    if(pair_blacklist.size() > 0)
+    {
+        for(auto& pair : pair_blacklist)
+        {
+            log_info("Found blacklist entry: " + pair);
+        }
+    }
+
+    log_info("Found " + std::to_string(pair_blacklist.size()) + " pairs to be blacklisted.");
 }
 
 int main(int argc, char *argv[])
@@ -735,12 +776,14 @@ int main(int argc, char *argv[])
     program.add_argument("-Z", "--max-vaf-snv").default_value(1.0f).help("Maximum VAF for a SNV to be considered. SNVs with a higher VAF than this will be filtered prior to MNV analysis.").store_into(settings.max_snv_vaf);
     program.add_argument("-L", "--min-log-odds").default_value(2.0).help("MNVs with a log odds ratio higher than the specified value will be considered.").store_into(settings.odds_ratio);
     program.add_argument("-B", "--min-bayesian").default_value(0.0).help("Minimum bayesian probability score for an MNV to be considered. MNVs with a lower bayesian probability than the specified value will be filtered.").store_into(settings.min_bayesian);
-    program.add_argument("-F", "--min-phi").default_value(0.5).help("Minimum Phi-coefficient for a pair of SNVs to be considered. Pairs with a lower Phi-coefficient than the specified value will be discarded.").store_into(settings.min_phi);
+    program.add_argument("-F", "--min-phi").default_value(0.0).help("Minimum Phi-coefficient for a pair of SNVs to be considered. Pairs with a lower Phi-coefficient than the specified value will be discarded.").store_into(settings.min_phi);
     program.add_argument("-C", "--black-list").help("Path to a file containing a list of MNV pairs that should be ignored while making MNVs.").store_into(settings.blacklist_path);
-    program.add_argument("-R", "--read-length").default_value(150).help("The maximum length in bp a read can be. SNVs will not be paired if their distance is larger than this value.").store_into(settings.read_length);
+    program.add_argument("-R", "--read-length").default_value(100).help("The maximum length in bp a read can be. SNVs will not be paired if their distance is larger than this value.").store_into(settings.read_length);
+    program.add_argument("-J", "--min-jaccard").default_value(0.0).help("The minimum Jaccard index value for an MNV to be considered.").store_into(settings.jaccard);
+    program.add_argument("-K", "--skip_filtered").default_value(false).help("Don't save filtered MNVs, only keep and output MNVs that passed the tests.").store_into(settings.skip_filtered);
 
-    program.add_argument("-E", "--bayes-error-freq").default_value(0.001).help("Minimum expected SNV VAF at which SNVs can still reliably be called. By default set to an error rate of 0.001 (Q30).").store_into(settings.bayes_freq);
-    program.add_argument("-H", "--bayes-mnv-freq").default_value(0.01).help("Minimum expected MNV VAF at which you still expect to find MNVs. By default set to 0.01 (1%  VAF)." ).store_into(settings.bayes_haplo);
+    //program.add_argument("-E", "--bayes-error-freq").default_value(0.001).help("Minimum expected SNV VAF at which SNVs can still reliably be called. By default set to an error rate of 0.001 (Q30).").store_into(settings.bayes_freq);
+    //program.add_argument("-H", "--bayes-mnv-freq").default_value(0.01).help("Minimum expected MNV VAF at which you still expect to find MNVs. By default set to 0.01 (1%  VAF)." ).store_into(settings.bayes_haplo);
     program.add_argument("-P", "--bayes-prior-mnv").default_value(0.5).help("Prior used for the Bayesian model. Change this to make SNV pairs less/more likely to be designated as real MNV. Default is 0.5 (no effect)").store_into(settings.bayes_prior);
 
     try
@@ -752,12 +795,6 @@ int main(int argc, char *argv[])
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         return 1;
-    }
-
-    if(settings.blacklist_path.size() > 0)
-    {
-        blacklist_enable = true;
-        load_blacklist(settings.blacklist_path);
     }
 
     try
@@ -789,6 +826,13 @@ int main(int argc, char *argv[])
     }
     log_info(cmd_info.str());
 
+
+    if(settings.blacklist_path != "")
+    {
+        blacklist_enable = true;
+        load_blacklist(settings.blacklist_path);
+    }
+
     auto start = std::chrono::steady_clock::now();
 
     /*
@@ -805,7 +849,7 @@ int main(int argc, char *argv[])
     }
 
     total_windows = all_snv_windows.size();
-    log_info("Created " + std::to_string(total_windows) + " total windows\n");
+    log_info("Created " + std::to_string(total_windows) + " total windows");
     
     all_mnv_windows = (mnv_window*)calloc(total_windows, sizeof(mnv_window));
     all_mnv_filtered = (mnv_window*)calloc(total_windows, sizeof(mnv_window));
@@ -820,7 +864,7 @@ int main(int argc, char *argv[])
     //Malloc array of packed chromosome/window IDs for each window
     uint32_t* packed_ids = (uint32_t*) calloc(total_windows, sizeof(uint32_t));
 
-    log_info("Starting processing of windows...\n");
+    log_info("Starting processing of windows...");
 
     for (int i = 0; i < total_windows; i++)
     {
@@ -849,7 +893,7 @@ int main(int argc, char *argv[])
 
     std::chrono::duration<double> elapsed_seconds = end - start;
     double minutes = elapsed_seconds.count() / 60.0;
-    log_info("Finished! Total execution time: " + std::to_string(minutes) + " minute(s).\n");
+    log_info("Finished! Total execution time: " + std::to_string(minutes) + " minute(s).");
 
     free(all_mnv_windows);
     free(all_mnv_filtered);

@@ -155,7 +155,7 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
                     std::stringstream qualities;
                     for(int i = 0; i < m.variants.size(); i++)
                     {
-                        qualities << m.variants[i]->phred_qual * -10;
+                        qualities << m.variants[i]->base_qual_sum;
                         if(i != m.variants.size() - 1)
                         {
                             qualities << "|";
