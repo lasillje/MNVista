@@ -100,8 +100,6 @@ For the analysis of baseline samples (taken at time of diagnosis), we recommend 
 
 For follow-up samples (interim, end-of-treatment, etc.), the MNVista output VCF from the corresponding baseline should be used. This way, only SNVs associated with baseline MNVs will be considered, speeding up analysis time substantially. Filter critera can be set very lax, as the presence of an MNV is now more important than the statistics. Minimum SNV VRD (-S) should be set to 1 for maximum sensitivity, and the maximum MNV size (-M) should be kept the same as in the baseline.
 
-Subsequent analyses of follow-up samples
-
 ## Output
 
 MNVista has 4 outputs:
@@ -133,6 +131,6 @@ MNVista has 4 outputs:
 | LOG_ODDS | (Deprecated) Log-odds ratio for the MNV | 
 
 ## License
-
+MNVista is licensed under the MIT license. For more information, see LICENSE.md
 
 ## Referencing
