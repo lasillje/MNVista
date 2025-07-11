@@ -75,7 +75,7 @@ An overview of currently available run options with a short description:
 | -V, --verbose | Enable verbose logging |
 | -O, --output-name | Sets output file name | 
 | -M, --max-mnv-size | Sets max SNVs in an MNV |
-| -Q, --read-quality | Minimum read quality |
+| -Q, --read-quality | Minimum read mapping quality |
 | -T, --threads | Amount of threads to be used|
 | -Y, --min-vaf-snv | Minimum VAF of input SNVs |
 | -A, --min-vaf-mnv | Minimum VAF of output MNVs |
@@ -86,21 +86,30 @@ An overview of currently available run options with a short description:
 | -F, --min-phi | Minimum Phi-coefficient for MNVs|
 | -C, --black-list | List of MNVs to be ignored|
 | -R, --read-length | Expected length of reads in data (bp)|  
-| -E, --bayes-error-freq | Minimum expected reliable SNV VAF |
-| -H, --bayes-mnv-freq | Minimum expected MNV VAF |
-| -P, --bayes-prior-mnv | Bayes prior for an MNV being real |
+| -K, --skip-filtered | Skip saving and outputting filtered MNVs |  
+| -J, --min-jaccard | Minimum jaccard index for an MNV |
+| -P, --bayes-prior-mnv | Bayes prior |
 
+Note that any option regarding input SNV VAF or VRD requires this field to be present in the input VCF. Currently, accepted names for these fields are "AF" or "VAF" for the SNV VAFs, and "MRD" or "VRD" for the variant supporting read depth. In case these fields are not present, these options will be ignored.
 
 For a comprehensive list of run options and default values, use ```MNVista -h```
+
+## Recommended workflows
+
+For the analysis of baseline samples (taken at time of diagnosis), we recommend to use a broad, unfiltered input VCF containing as many variants as possible (called at maximum sensitivity). Within MNVista, the minimum VRD (-S) of input SNVs can then be set to a value that best represents the VRD associated with the active disease. This heavily depends per disease and sequencing methods used. We used a value of 15 for coverages between ~15,000 - 22,000. Filter critera should be quite stringent (B > 0.9, F > 0.5, J > 0.5) in order to call only high-confidence MNVs. Recommended maximum MNV size (-M) can be set to 2 (only SNV pairs) or higher (larger MNVs), however setting it to 0 (dynamic MNV size based on SNV count of current genomic window) or a large value ( > 10) might increase analysis time substantially. Lastly, if you are not interested in the filtered MNVs, the saving and outputting of these MNVs can be skipped (-K true), which also speeds up analysis time and decreases memory usage.
+
+For follow-up samples (interim, end-of-treatment, etc.), the MNVista output VCF from the corresponding baseline should be used. This way, only SNVs associated with baseline MNVs will be considered, speeding up analysis time substantially. Filter critera can be set very lax, as the presence of an MNV is now more important than the statistics. Minimum SNV VRD (-S) should be set to 1 for maximum sensitivity, and the maximum MNV size (-M) should be kept the same as in the baseline.
+
+Subsequent analyses of follow-up samples
 
 ## Output
 
 MNVista has 4 outputs:
 
-- 'results.csv' containing MNVs that have a higher Bayesian probability and Phi-coefficient than the minimum specified value.
-- 'results_filtered.csv' containing MNVs that failed the previous criteria.
+- 'results.csv' containing MNVs that passed all criteria.
+- 'results_filtered.csv' containing MNVs that failed one or more of the criteria.
 - 'results.vcf' containing a list of all unique SNVs present in the results.csv, useful for keeping track of certain MNVs found in baseline samples across multiple timepoints.
-- 'results.log' containing any log messages that were generated during a run.
+- 'results.log' containing any log messages that were generated during a run, including the command used to generate these results.
 
 
 | Output column | Description |
@@ -120,6 +129,10 @@ MNVista has 4 outputs:
 | INDIVIDUAL_MUTATED| VRD of each SNV|
 |SIZE_MNV | Number of SNVs present in an MNV|
 | DIST_MNV | Distance (bp) between first and last SNV of MNV |
+| QUALITIES | (Debug) Sum of all base qualities for each SNV |
+| LOG_ODDS | (Deprecated) Log-odds ratio for the MNV | 
+
+## License
 
 
 ## Referencing

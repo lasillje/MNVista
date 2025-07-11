@@ -764,26 +764,21 @@ int main(int argc, char *argv[])
     program.add_argument("input_vcf").help("Path to an input .vcf file.").store_into(settings.in_vcf);
     program.add_argument("output_dir").help("Path to the output file directory.").store_into(settings.out_path);
     program.add_argument("-O", "--output-name").default_value("results").help("The name for the output files. MNVs will be placed in <output_dir><name>.csv, the vcf in <output_dir><name>.vcf").store_into(settings.out_name);
-    program.add_argument("-W", "--window-size").default_value(50).help("Determines the range (in bp) to still include variants within a window. The range is specified as the amount of base pairs to check behind or ahead of the current window position.").store_into(settings.window_size); //DEPRECATED
     program.add_argument("-M", "--max-mnv-size").default_value(3).help("Determines the maximum amount of SNVs that can be in an MNV. Set to 0 for dynamic sizing based on window size, however this might increase runtime substantially.").store_into(settings.mnv_size);
     program.add_argument("-Q", "--read-quality").default_value(25).help("Only consider reads with an equal or higher mapping quality than the specified value.").store_into(settings.min_read_quality);
     program.add_argument("-V", "--verbose").default_value(false).help("Enables additional logging wile the program is running").store_into(settings.verbose);
     program.add_argument("-T", "--threads").default_value(4).help("Specifies the amount of threads the program should use. A higher number means an increase in work paralellization.").store_into(settings.num_threads);
     program.add_argument("-A", "--min-vaf-mnv").default_value(0.0001f).help("Minimum VAF for an MNV to be considered. MNVs with a lower VAF than this will not be output.").store_into(settings.min_vaf);
-    program.add_argument("-S", "--min-vrd-snv").default_value(5).help("Minimum MRD for a SNV to be considered. SNVs with a lower MRD than this will be filtered prior to MNV analysis.").store_into(settings.min_mrd_snv);
-    program.add_argument("-N", "--min-vrd-mnv").default_value(3).help("Minimum MRD for a MNV to be considered. MNVs with a lower MRD than this will not be output.").store_into(settings.min_mrd_mnv);
+    program.add_argument("-S", "--min-vrd-snv").default_value(5).help("Minimum VRD for a SNV to be considered. SNVs with a lower VRD than this will be filtered prior to MNV analysis.").store_into(settings.min_mrd_snv);
+    program.add_argument("-N", "--min-vrd-mnv").default_value(1).help("Minimum VRD for a MNV to be considered. MNVs with a lower VRD than this will not be output.").store_into(settings.min_mrd_mnv);
     program.add_argument("-Y", "--min-vaf-snv").default_value(0.0f).help("Minimum VAF for a SNV to be considered. SNVs with a lower VAF than this will be filtered prior to MNV analysis.").store_into(settings.min_snv_vaf);
     program.add_argument("-Z", "--max-vaf-snv").default_value(1.0f).help("Maximum VAF for a SNV to be considered. SNVs with a higher VAF than this will be filtered prior to MNV analysis.").store_into(settings.max_snv_vaf);
-    program.add_argument("-L", "--min-log-odds").default_value(2.0).help("MNVs with a log odds ratio higher than the specified value will be considered.").store_into(settings.odds_ratio);
     program.add_argument("-B", "--min-bayesian").default_value(0.0).help("Minimum bayesian probability score for an MNV to be considered. MNVs with a lower bayesian probability than the specified value will be filtered.").store_into(settings.min_bayesian);
     program.add_argument("-F", "--min-phi").default_value(0.0).help("Minimum Phi-coefficient for a pair of SNVs to be considered. Pairs with a lower Phi-coefficient than the specified value will be discarded.").store_into(settings.min_phi);
-    program.add_argument("-C", "--black-list").help("Path to a file containing a list of MNV pairs that should be ignored while making MNVs.").store_into(settings.blacklist_path);
+    program.add_argument("-C", "--black-list").help("Path to a file containing a list of MNVs that should be ignored while making MNVs.").store_into(settings.blacklist_path);
     program.add_argument("-R", "--read-length").default_value(100).help("The maximum length in bp a read can be. SNVs will not be paired if their distance is larger than this value.").store_into(settings.read_length);
     program.add_argument("-J", "--min-jaccard").default_value(0.0).help("The minimum Jaccard index value for an MNV to be considered.").store_into(settings.jaccard);
-    program.add_argument("-K", "--skip_filtered").default_value(false).help("Don't save filtered MNVs, only keep and output MNVs that passed the tests.").store_into(settings.skip_filtered);
-
-    //program.add_argument("-E", "--bayes-error-freq").default_value(0.001).help("Minimum expected SNV VAF at which SNVs can still reliably be called. By default set to an error rate of 0.001 (Q30).").store_into(settings.bayes_freq);
-    //program.add_argument("-H", "--bayes-mnv-freq").default_value(0.01).help("Minimum expected MNV VAF at which you still expect to find MNVs. By default set to 0.01 (1%  VAF)." ).store_into(settings.bayes_haplo);
+    program.add_argument("-K", "--skip-filtered").default_value(false).help("Don't save filtered MNVs, only keep and output MNVs that passed the tests.").store_into(settings.skip_filtered);
     program.add_argument("-P", "--bayes-prior-mnv").default_value(0.5).help("Prior used for the Bayesian model. Change this to make SNV pairs less/more likely to be designated as real MNV. Default is 0.5 (no effect)").store_into(settings.bayes_prior);
 
     try
