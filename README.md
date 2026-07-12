@@ -127,8 +127,10 @@ MNVista has 4 outputs:
 | INDIVIDUAL_MUTATED| VRD of each SNV|
 |SIZE_MNV | Number of SNVs present in an MNV|
 | DIST_MNV | Distance (bp) between first and last SNV of MNV |
-| QUALITIES | (Debug) Sum of all base qualities for each SNV |
+| QUALITIES | Mean of all base qualities |
 | LOG_ODDS | (Deprecated) Log-odds ratio for the MNV | 
+| DUPLICATE_FRACTION |Fraction of unique read position (start, end) combinations |
+| MAX_SUPPORT_FRACTION | Percentage of reads stemming from the most common (start, end) combination |
 
 ## License
 MNVista is licensed under the MIT license. For more information, see LICENSE.md
