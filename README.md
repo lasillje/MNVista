@@ -174,6 +174,9 @@ MNVista has 4 outputs:
 | DUPLICATE_FRACTION | Fraction of unique read position (start, end) combinations |
 | MAX_SUPPORT_FRACTION | Fraction of reads stemming from the most common (start, end) combination |
 
+## License
+MNVista is licensed under the GPL-3.0 license. For more information, see LICENSE.md
+
 ## Referencing
 
 _A citation for the MNVista paper will be added here once it is published._
