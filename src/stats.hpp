@@ -18,7 +18,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #include "mnv.hpp"
 
 float vaf_mean(const snv_window& variants, int num_snv);
@@ -26,4 +25,5 @@ float vaf_sd(const snv_window& variants, int num_snv, float* out_mean);
 
 double test_phi(int num_both, int num_a, int num_b, int num_none);
 double test_odds(int num_both, int num_a, int num_b, int num_none);
-double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv);
+double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
+                     double f_error, double f_haplo, double prior_mnv);

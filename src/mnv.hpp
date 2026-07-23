@@ -18,7 +18,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #define mnv_window std::vector<mnv>
 #define snv_window std::vector<snv*>
 
@@ -70,14 +69,14 @@ struct read
     int start_pos;
     int end_pos;
 
-    bool operator < (read const& other) const noexcept
+    bool operator<(read const& other) const noexcept
     {
-      return read_name < other.read_name;
+        return read_name < other.read_name;
     }
 
-    bool operator == (read const& other) const noexcept
+    bool operator==(read const& other) const noexcept
     {
-      return read_name == other.read_name;
+        return read_name == other.read_name;
     }
 };
 
@@ -85,7 +84,7 @@ struct snv
 {
     std::vector<read> supporting_hashes;
     std::vector<read> covering_hashes;
-    //std::vector<unsigned int> base_qualities;
+    // std::vector<unsigned int> base_qualities;
     std::string chrom_name;
     double base_qual_sum;
     unsigned int base_qual_count;
@@ -124,10 +123,10 @@ struct mnv
 
 struct mnv_hash
 {
-  size_t operator()(const mnv& m) const
-  {
-    return std::hash<std::string>()(m.name);
-  }
+    size_t operator()(const mnv& m) const
+    {
+        return std::hash<std::string>()(m.name);
+    }
 };
 
 extern run_params settings;
