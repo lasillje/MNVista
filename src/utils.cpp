@@ -106,7 +106,7 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
     if (mnv_outfile.is_open())
     {
         //Add header
-        mnv_outfile << "WINDOW_ID;CHROM;MNV_NAME;VAF;SD;NUM_SUPPORTING;NUM_COVERING;PHI;COEFFICIENT_VARIATION;BAYESIAN;JACCARD;DISCORDANT;INDIVIDUAL_MUTATED;SIZE_MNV;DIST_MNV;QUALITIES;LOG_ODDS\n" << std::fixed;
+        mnv_outfile << "WINDOW_ID;CHROM;MNV_NAME;VAF;SD;NUM_SUPPORTING;NUM_COVERING;PHI;COEFFICIENT_VARIATION;BAYESIAN;JACCARD;DISCORDANT;INDIVIDUAL_MUTATED;SIZE_MNV;DIST_MNV;QUALITIES;LOG_ODDS;DUPLICATE_FRACTION;MAX_SUPPORT_FRACTION\n" << std::fixed;
         for(int i = 0; i < total_windows; i++)
         {
             if(windows[i].empty()) continue;
@@ -149,13 +149,14 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
                     std::stringstream qualities;
                     for(int i = 0; i < m.variants.size(); i++)
                     {
-                        qualities << m.variants[i]->base_qual_sum;
+                        double mean_base_qual = m.variants[i]->base_qual_count > 0 ? (m.variants[i]->base_qual_sum / m.variants[i]->base_qual_count) : 0.0;
+                        qualities << mean_base_qual;
                         if(i != m.variants.size() - 1)
                         {
                             qualities << "|";
                         }
                     }
-                    mnv_outfile << m.window_id << ";" << chromosome << ";" << m.name << ";" <<  m.vaf << ";" << m.sd << ";" << m.num_sup << ";" << m.num_cov << ";" << m.odds_phi << ";" << m.rsd << ";" << m.bayesian_prob << ";" << m.frac << ";" << discordants.str() << ";" << individual.str() << ";" << m.variants.size() << ";" << dist << ";" << qualities.str() << ";" << m.odds_ratio << "\n";
+                    mnv_outfile << m.window_id << ";" << chromosome << ";" << m.name << ";" <<  m.vaf << ";" << m.sd << ";" << m.num_sup << ";" << m.num_cov << ";" << m.odds_phi << ";" << m.rsd << ";" << m.bayesian_prob << ";" << m.frac << ";" << discordants.str() << ";" << individual.str() << ";" << m.variants.size() << ";" << dist << ";" << qualities.str() << ";" << m.odds_ratio << ";" << m.dup_fraction << ";" << m.max_support_fraction << "\n";
                 }
             }
         }

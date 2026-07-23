@@ -63,11 +63,12 @@ struct run_params
     bool verbose;
     bool skip_filtered;
 };
-
 struct read
 {
     std::string read_name;
     unsigned char quality;
+    int start_pos;
+    int end_pos;
 
     bool operator < (read const& other) const noexcept
     {
@@ -87,6 +88,7 @@ struct snv
     //std::vector<unsigned int> base_qualities;
     std::string chrom_name;
     double base_qual_sum;
+    unsigned int base_qual_count;
     int chrom_id;
     unsigned int pos;
     unsigned int mrd;
@@ -111,6 +113,8 @@ struct mnv
     float frac;
     float sd;
     float rsd;
+    float dup_fraction;
+    float max_support_fraction;
     unsigned int window_id;
     unsigned int num_sup;
     unsigned int num_cov;

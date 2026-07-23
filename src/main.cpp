@@ -220,6 +220,25 @@ MNV_RESULT test_snv(const std::vector<snv *> &s, int num_variants, mnv *out_mnv)
     int numMutated = intersect_sup.size();
     int numCov = intersect_cov.size();
 
+    // Duplicate fraction & max-support-fraction, based on (start, end) position
+    // pairs of the reads supporting the full MNV (intersect_sup).
+    {
+        std::map<std::pair<int, int>, int> pos_pair_counts;
+        for (const auto& r : intersect_sup)
+        {
+            pos_pair_counts[{r.start_pos, r.end_pos}]++;
+        }
+
+        int max_pair_count = 0;
+        for (const auto& kv : pos_pair_counts)
+        {
+            if (kv.second > max_pair_count) max_pair_count = kv.second;
+        }
+
+        out_mnv->dup_fraction = numMutated > 0 ? ((float)pos_pair_counts.size() / (float)numMutated) : 0.0f;
+        out_mnv->max_support_fraction = numMutated > 0 ? ((float)max_pair_count / (float)numMutated) : 0.0f;
+    }
+
     int numTotalSolo = 0;
 
     for (int i = 0; i < num_variants; i++)
@@ -567,6 +586,7 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
       int pos = v->pos;
       
       v->base_qual_sum = 0.0;
+      v->base_qual_count = 0;
       v->loaded_reads = 1;
   
       hts_itr_t* iter = sam_itr_queryi(bam_idx, chrom_id, pos, pos + 1);
@@ -588,6 +608,8 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
         read r;
         r.read_name = read_name;
         r.quality = q;
+        r.start_pos = bam_read->core.pos;
+        r.end_pos = bam_endpos(bam_read);
         //unsigned int index = (unsigned int)hasher(read_name);
 
         v->covering_hashes.push_back(r);
@@ -598,6 +620,7 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
             if(q != 255)
             {
                 v->base_qual_sum += ((float)(int)q / 10);
+                v->base_qual_count++;
             }
             v->supporting_hashes.push_back(r);
         }
