@@ -16,7 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -31,31 +30,30 @@
     Get the name of an MNV (chrN:pos1-pos2..:ref1>alt1-ref2>alt2...)
     If add_ref_alts is set to true then the reference/alt allele of each SNV is added to the name as well.
 */
-std::string name_mnv(std::vector<snv *> &variants, bool add_ref_alts)
+std::string name_mnv(std::vector<snv*>& variants, bool add_ref_alts)
 {
-    if (!variants.empty())
+    if(!variants.empty())
     {
         std::stringstream strs;
         strs << variants[0]->chrom_name << ":";
 
-        std::sort(variants.begin(), variants.end(), [](snv *a, snv *b)
-                  { return a->pos < b->pos; });
+        std::sort(variants.begin(), variants.end(), [](snv* a, snv* b) { return a->pos < b->pos; });
 
-        for (int i = 0; i < variants.size(); i++)
+        for(int i = 0; i < variants.size(); i++)
         {
-            if (i > 0)
+            if(i > 0)
             {
                 strs << "-";
             }
             strs << (variants[i]->pos + 1);
         }
 
-        if (add_ref_alts)
+        if(add_ref_alts)
         {
             strs << ":";
-            for (int i = 0; i < variants.size(); i++)
+            for(int i = 0; i < variants.size(); i++)
             {
-                if (i > 0)
+                if(i > 0)
                 {
                     strs << "-";
                 }
@@ -72,12 +70,12 @@ std::string name_mnv(std::vector<snv *> &variants, bool add_ref_alts)
 */
 void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
 {
-    htsFile *vcf = bcf_open(settings.in_vcf.c_str(), "r");
-    bcf_hdr_t *hdr = bcf_hdr_read(vcf);
+    htsFile* vcf = bcf_open(settings.in_vcf.c_str(), "r");
+    bcf_hdr_t* hdr = bcf_hdr_read(vcf);
 
     std::stringstream file_name;
     file_name << settings.out_name;
-    
+
     if(filtered)
     {
         file_name << "_filtered";
@@ -88,39 +86,42 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
     std::string output_name = outstr.str();
     std::ofstream mnv_outfile;
 
-    //Sort windows based on max MNV size
-    //We want the biggest MNV on top for each window, and then decrease in size
+    // Sort windows based on max MNV size
+    // We want the biggest MNV on top for each window, and then decrease in size
     for(int i = 0; i < total_windows; i++)
     {
         if(!windows[i].empty())
         {
-            std::sort(windows[i].begin(), windows[i].end(), [](const mnv &a, const mnv &b)
-            {
-                return a.variants.size() > b.variants.size(); });
+            std::sort(windows[i].begin(), windows[i].end(),
+                      [](const mnv& a, const mnv& b) { return a.variants.size() > b.variants.size(); });
         }
     }
 
     std::unordered_set<std::string> mnv_cache;
 
     mnv_outfile.open(output_name);
-    if (mnv_outfile.is_open())
+    if(mnv_outfile.is_open())
     {
-        //Add header
-        mnv_outfile << "WINDOW_ID;CHROM;MNV_NAME;VAF;SD;NUM_SUPPORTING;NUM_COVERING;PHI;COEFFICIENT_VARIATION;BAYESIAN;JACCARD;DISCORDANT;INDIVIDUAL_MUTATED;SIZE_MNV;DIST_MNV;QUALITIES;LOG_ODDS;DUPLICATE_FRACTION;MAX_SUPPORT_FRACTION\n" << std::fixed;
+        // Add header
+        mnv_outfile << "WINDOW_ID;CHROM;MNV_NAME;VAF;SD;NUM_SUPPORTING;NUM_COVERING;PHI;COEFFICIENT_VARIATION;BAYESIAN;"
+                       "JACCARD;DISCORDANT;INDIVIDUAL_MUTATED;SIZE_MNV;DIST_MNV;QUALITIES;LOG_ODDS;DUPLICATE_FRACTION;"
+                       "MAX_SUPPORT_FRACTION\n"
+                    << std::fixed;
         for(int i = 0; i < total_windows; i++)
         {
-            if(windows[i].empty()) continue;
+            if(windows[i].empty())
+                continue;
             for(int j = 0; j < windows[i].size(); j++)
             {
                 for(const auto& m : windows[i])
-                {   
+                {
                     if(mnv_cache.find(m.name) != mnv_cache.end() || m.variants.empty())
                     {
                         continue;
                     }
                     mnv_cache.insert(m.name);
 
-                    int dist = m.variants[m.variants.size()-1]->pos - m.variants[0]->pos;
+                    int dist = m.variants[m.variants.size() - 1]->pos - m.variants[0]->pos;
                     std::string chromosome = m.variants[0]->chrom_name;
 
                     std::stringstream discordants;
@@ -149,14 +150,21 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
                     std::stringstream qualities;
                     for(int i = 0; i < m.variants.size(); i++)
                     {
-                        double mean_base_qual = m.variants[i]->base_qual_count > 0 ? (m.variants[i]->base_qual_sum / m.variants[i]->base_qual_count) : 0.0;
+                        double mean_base_qual = m.variants[i]->base_qual_count > 0
+                                                    ? (m.variants[i]->base_qual_sum / m.variants[i]->base_qual_count)
+                                                    : 0.0;
                         qualities << mean_base_qual;
                         if(i != m.variants.size() - 1)
                         {
                             qualities << "|";
                         }
                     }
-                    mnv_outfile << m.window_id << ";" << chromosome << ";" << m.name << ";" <<  m.vaf << ";" << m.sd << ";" << m.num_sup << ";" << m.num_cov << ";" << m.odds_phi << ";" << m.rsd << ";" << m.bayesian_prob << ";" << m.frac << ";" << discordants.str() << ";" << individual.str() << ";" << m.variants.size() << ";" << dist << ";" << qualities.str() << ";" << m.odds_ratio << ";" << m.dup_fraction << ";" << m.max_support_fraction << "\n";
+                    mnv_outfile << m.window_id << ";" << chromosome << ";" << m.name << ";" << m.vaf << ";" << m.sd
+                                << ";" << m.num_sup << ";" << m.num_cov << ";" << m.odds_phi << ";" << m.rsd << ";"
+                                << m.bayesian_prob << ";" << m.frac << ";" << discordants.str() << ";"
+                                << individual.str() << ";" << m.variants.size() << ";" << dist << ";" << qualities.str()
+                                << ";" << m.odds_ratio << ";" << m.dup_fraction << ";" << m.max_support_fraction
+                                << "\n";
                 }
             }
         }
@@ -171,19 +179,20 @@ void write_mnv_list(mnv_window* windows, int total_windows, bool filtered)
 */
 void write_vcf_list(mnv_window* windows, const std::set<std::string>& contigs, int total_windows)
 {
-    htsFile *vcf = bcf_open(settings.in_vcf.c_str(), "r");
-    bcf_hdr_t *hdr = bcf_hdr_read(vcf);
+    htsFile* vcf = bcf_open(settings.in_vcf.c_str(), "r");
+    bcf_hdr_t* hdr = bcf_hdr_read(vcf);
 
     std::stringstream outstr;
     outstr << settings.out_path << std::filesystem::path::preferred_separator << settings.out_name << ".vcf";
     std::string output_name = outstr.str();
-  
+
     std::ofstream vcf_outfile;
 
     std::set<snv*> unique_snv;
     for(int i = 0; i < total_windows; i++)
     {
-        if(windows[i].empty());
+        if(windows[i].empty())
+            ;
         for(int j = 0; j < windows[i].size(); j++)
         {
             for(mnv& m : windows[i])
@@ -198,19 +207,20 @@ void write_vcf_list(mnv_window* windows, const std::set<std::string>& contigs, i
 
     std::vector<snv*> unique_variants_vec(unique_snv.begin(), unique_snv.end());
 
-    std::sort(unique_variants_vec.begin(), unique_variants_vec.end(), [](snv* a, snv* b)
-    {
-      if(a->chrom_id != b->chrom_id)
-      {
-        return a->chrom_id < b->chrom_id;
-      }
-      return a->pos < b->pos;
-    });
-  
+    std::sort(unique_variants_vec.begin(), unique_variants_vec.end(),
+              [](snv* a, snv* b)
+              {
+                  if(a->chrom_id != b->chrom_id)
+                  {
+                      return a->chrom_id < b->chrom_id;
+                  }
+                  return a->pos < b->pos;
+              });
+
     vcf_outfile.open(output_name);
     if(vcf_outfile.is_open())
     {
-        //Add header
+        // Add header
         vcf_outfile << std::fixed;
         vcf_outfile << "##fileformat=VCFv4.2\n";
         vcf_outfile << "##source=MNV\n";
@@ -224,15 +234,18 @@ void write_vcf_list(mnv_window* windows, const std::set<std::string>& contigs, i
         }
 
         vcf_outfile << "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n";
-  
-      for(snv* v : unique_variants_vec)
-      {
 
-        vcf_outfile << v->chrom_name << "\t" << v->pos + 1 << "\t" << "." << '\t' << v->ref << "\t" << v->alt << "\t" << "100" << "\tPASS" << "\t" << "AF=" << v->vaf << ";MRD=" << v->mrd << ";DP=" << v->dp << "\n";
-      }
-    } else
+        for(snv* v : unique_variants_vec)
+        {
+
+            vcf_outfile << v->chrom_name << "\t" << v->pos + 1 << "\t" << "." << '\t' << v->ref << "\t" << v->alt
+                        << "\t" << "100" << "\tPASS" << "\t" << "AF=" << v->vaf << ";MRD=" << v->mrd << ";DP=" << v->dp
+                        << "\n";
+        }
+    }
+    else
     {
-      log_error("Unable to create file " + output_name + "\n");
+        log_error("Unable to create file " + output_name + "\n");
     }
     vcf_outfile.close();
 

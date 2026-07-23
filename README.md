@@ -1,6 +1,6 @@
 # MNVista
 
-[![Build](https://github.com/lasillje/MNVista/actions/workflows/build_mnvista.yml/badge.svg)](https://github.com/lasillje/MNVista/actions/workflows/build.yml) [![License: MIT](https://img.shields.io/github/license/lasillje/MNVista)](LICENSE.md)
+[![Build](https://github.com/lasillje/MNVista/actions/workflows/build_mnvista.yml/badge.svg)](https://github.com/lasillje/MNVista/actions/workflows/build_mnvista.yml) [![License: MIT](https://img.shields.io/github/license/lasillje/MNVista)](LICENSE.md)
 
 MNVista provides enhanced identification of multi-nucleotide variants from targeted short-read sequencing data. By utilising the detection of multi-nucleotide variants in cancers, the limit of detection (LOD) of minimal residual disease (MRD) can be increased.
 

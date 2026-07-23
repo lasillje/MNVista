@@ -16,7 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #include <cmath>
 
 #include <iostream>
@@ -27,7 +26,7 @@
 float vaf_mean(const snv_window& variants, int num_snv)
 {
     float vaf = 0;
-    for (int i = 0; i < num_snv; i++)
+    for(int i = 0; i < num_snv; i++)
     {
         vaf += variants[i]->vaf;
     }
@@ -43,20 +42,20 @@ float vaf_sd(const snv_window& variants, int num_snv, float* out_mean)
 {
     float mean = vaf_mean(variants, num_snv);
 
-    if (out_mean != nullptr)
+    if(out_mean != nullptr)
     {
         *out_mean = mean;
     }
 
     std::vector<float> devs;
-    for (int i = 0; i < num_snv; i++)
+    for(int i = 0; i < num_snv; i++)
     {
         float d = variants[i]->vaf - mean;
         devs.push_back(d * d);
     }
 
     float total = 0;
-    for (int i = 0; i < num_snv; i++)
+    for(int i = 0; i < num_snv; i++)
     {
         total += devs[i];
     }
@@ -98,7 +97,7 @@ double test_phi(int num_both, int num_a, int num_b, int num_none)
     long double delta = (num_none + 1) / total;
 
     long double numerator = (alpha * delta) - (beta * gamma);
-    long double denominator = std::sqrt(((alpha + beta)*(alpha + gamma)*(beta + delta)*(gamma + delta)));
+    long double denominator = std::sqrt(((alpha + beta) * (alpha + gamma) * (beta + delta) * (gamma + delta)));
 
     return static_cast<double>((numerator / denominator));
 }
@@ -113,39 +112,39 @@ double softmax(double A, double B)
     return M + std::log10(eA + eB);
 }
 
-
-double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none, double f_error, double f_haplo, double prior_mnv)
+double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
+                     double f_error, double f_haplo, double prior_mnv)
 {
     if(num_both == 0 || cur_mnv->qualities.size() < 2)
     {
         return 0.0;
     }
 
-    double A = (double)num_both; //Read counts for both alt allele
-    double B = (double)num_a; //Read counts for only alt allele of snv_a
-    double C = (double)num_b; //Read counts for only alt allele of snv_b
-    double D = (double)num_none; //Read counts for both ref allele
+    double A = (double)num_both; // Read counts for both alt allele
+    double B = (double)num_a;    // Read counts for only alt allele of snv_a
+    double C = (double)num_b;    // Read counts for only alt allele of snv_b
+    double D = (double)num_none; // Read counts for both ref allele
 
     double e_b = cur_mnv->discordant_qualities[0];
     double e_c = cur_mnv->discordant_qualities[1];
-    
+
     double e_a1 = cur_mnv->qualities[0];
     double e_a2 = cur_mnv->qualities[1];
 
     double T = A + B + C + D;
-    
+
     double fa = A / T;
 
     double fa1 = (A + B + 1) / T;
     double fa2 = (A + C + 1) / T;
-    
+
     double fr1 = (C + D + 1) / T;
     double fr2 = (B + D + 1) / T;
 
     double p_m1 = A * std::log10(fa) + D * std::log10(1.0 - fa) - e_b - e_c;
-    
-    double p_m2b = softmax(-e_a1 - e_b, ((A+B) * std::log10(fa1)) + ((C+D) * std::log10(fr1)));
-    double p_m2c = softmax(-e_a2 - e_c, ((A+C) * std::log10(fa2)) + ((B+D) * std::log10(fr2)));
+
+    double p_m2b = softmax(-e_a1 - e_b, ((A + B) * std::log10(fa1)) + ((C + D) * std::log10(fr1)));
+    double p_m2c = softmax(-e_a2 - e_c, ((A + C) * std::log10(fa2)) + ((B + D) * std::log10(fr2)));
 
     double p_m2 = p_m2b + p_m2c;
 
@@ -155,16 +154,18 @@ double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num
     double f_p_m1 = p_m1 + log_prior;
     double f_p_m2 = p_m2 + log_not_prior;
     double diff = f_p_m2 - f_p_m1;
-    
+
     double post = 0.0;
 
     if(diff > 100.0)
     {
         post = 0.0;
-    } else if (diff < -100.0)
+    }
+    else if(diff < -100.0)
     {
         post = 1.0;
-    } else
+    }
+    else
     {
         post = 1.0 / (1.0 + std::pow(10.0, diff));
     }

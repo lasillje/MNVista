@@ -18,7 +18,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #include "mnv.hpp"
 
-void make_windows_chromosome(std::vector<snv> &variant_list, std::vector<snv_window>& output_windows, int chromosome);
+void make_windows_chromosome(std::vector<snv>& variant_list, std::vector<snv_window>& output_windows, int chromosome);
