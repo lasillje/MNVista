@@ -325,12 +325,16 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
         }
 
         if(out_mnv->frac < settings.jaccard || out_mnv->odds_phi < settings.min_phi ||
-           out_mnv->odds_ratio < settings.odds_ratio || out_mnv->bayesian_prob < settings.min_bayesian ||
-           out_mnv->num_sup < settings.min_mrd_mnv || out_mnv->vaf < settings.min_vaf)
+           out_mnv->odds_ratio < settings.odds_ratio || out_mnv->bayesian_prob < settings.min_bayesian)
         {
             return MNV_FAILED_FILTERS;
         }
     }
+	
+	if(out_mnv->num_sup < settings.min_mrd_mnv || out_mnv->vaf < settings.min_vaf)
+	{
+		return MNV_FAILED_FILTERS;
+	}
 
     return MNV_SUCCESS;
 }
