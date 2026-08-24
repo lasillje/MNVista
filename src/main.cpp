@@ -314,8 +314,8 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
             out_mnv->odds_ratio = test_odds(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
             out_mnv->odds_phi = test_phi(out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1], none);
             out_mnv->bayesian_prob =
-                test_bayesian(s[0], s[1], out_mnv, out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1],
-                              none, settings.bayes_freq, settings.bayes_haplo, settings.bayes_prior);
+                test_bayesian(out_mnv, out_mnv->num_sup, out_mnv->discordant[0], out_mnv->discordant[1],
+					none, settings.bayes_p_err, settings.bayes_prior);
             if(settings.verbose)
             {
                 std::stringstream debugstr;
@@ -884,6 +884,10 @@ int main(int argc, char* argv[])
         .help("Prior used for the Bayesian model. Change this to make SNV pairs less/more likely to be designated as "
               "real MNV. Default is 0.5 (no effect)")
         .store_into(settings.bayes_prior);
+	program.add_argument("-E", "--bayes-p-error")
+        .default_value(0.5)
+        .help("Prior probability under Model 2 that the alternate bases at a position are sequencing errors rather than a real SNV. Default 0.5 (equal odds).")
+        .store_into(settings.bayes_p_err);
 
     try
     {

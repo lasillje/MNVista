@@ -45,9 +45,8 @@ struct run_params
     double odds_ratio;
     double min_bayesian;
     double min_phi;
-    double bayes_freq;
-    double bayes_haplo;
     double bayes_prior;
+	double bayes_p_err;
     double jaccard;
     int num_threads;
     int min_read_quality;
