@@ -102,7 +102,12 @@ double test_phi(int num_both, int num_a, int num_b, int num_none)
     return static_cast<double>((numerator / denominator));
 }
 
-double softmax(double A, double B)
+double lgamma10(double z)
+{
+    return std::lgamma(z) / M_LN10;
+}
+
+double log10_sum_exp(double A, double B)
 {
     double M = std::max(A, B);
 
@@ -112,63 +117,57 @@ double softmax(double A, double B)
     return M + std::log10(eA + eB);
 }
 
-double test_bayesian(snv* snv_a, snv* snv_b, mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
-                     double f_error, double f_haplo, double prior_mnv)
+
+double test_bayesian(mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
+                     double p_err, double prior_mnv)
 {
-    if(num_both == 0 || cur_mnv->qualities.size() < 2)
+    if(num_both == 0 || cur_mnv->qualities.size() < 2 || cur_mnv->discordant_qualities.size() < 2)
     {
         return 0.0;
     }
 
-    double A = (double)num_both; // Read counts for both alt allele
-    double B = (double)num_a;    // Read counts for only alt allele of snv_a
-    double C = (double)num_b;    // Read counts for only alt allele of snv_b
-    double D = (double)num_none; // Read counts for both ref allele
+    const double A = (double)num_both; // alt at both positions
+    const double B = (double)num_a;    // alt at position 1 only
+    const double C = (double)num_b;    // alt at position 2 only
+    const double D = (double)num_none; // ref at both positions
+    const double R = A + B + C + D;
 
-    double e_b = cur_mnv->discordant_qualities[0];
-    double e_c = cur_mnv->discordant_qualities[1];
+    // accumulated Phred error scores, E_{G,n} = sum over reads in class G of Q_rn/10.
+    const double E_A1 = cur_mnv->qualities[0];
+    const double E_A2 = cur_mnv->qualities[1];
+    const double E_B1 = cur_mnv->discordant_qualities[0];
+    const double E_C2 = cur_mnv->discordant_qualities[1];
 
-    double e_a1 = cur_mnv->qualities[0];
-    double e_a2 = cur_mnv->qualities[1];
+    //Dirichlet(1,1)
+    const double fa = 1.0, fb = 1.0;
+    const double logB0 = lgamma10(fa) + lgamma10(fb) - lgamma10(fa + fb);
 
-    double T = A + B + C + D;
+    // Model 1: both alts lie on one MNV haplotype
+    // L_M1 = 10^(-E_B1 - E_C2) * Beta(A + fa, R - A + fb) / Beta(fa, fb)
+    const double log_L_M1 = -E_B1 - E_C2
+                          + lgamma10(A + fa) + lgamma10(R - A + fb) - lgamma10(R + fa + fb)
+                          - logB0;
 
-    double fa = A / T;
+    // Model 2: both positions are independent
+    const double log_p_err = (p_err <= 0.0)  ? -1.0e300 : std::log10(p_err);
+    const double log_p_snv = (p_err >= 1.0)  ? -1.0e300 : std::log10(1.0 - p_err);
 
-    double fa1 = (A + B + 1) / T;
-    double fa2 = (A + C + 1) / T;
+    const double log_L_ERR1 = -E_A1 - E_B1;
+    const double log_L_ERR2 = -E_A2 - E_C2;
 
-    double fr1 = (C + D + 1) / T;
-    double fr2 = (B + D + 1) / T;
+    const double log_L_SNV1 = lgamma10(A + B + fa) + lgamma10(C + D + fb)
+                            - lgamma10(R + fa + fb) - logB0;
+    const double log_L_SNV2 = lgamma10(A + C + fa) + lgamma10(B + D + fb)
+                            - lgamma10(R + fa + fb) - logB0;
 
-    double p_m1 = A * std::log10(fa) + D * std::log10(1.0 - fa) - e_b - e_c;
+    const double log_L_M2 = log10_sum_exp(log_p_err + log_L_ERR1, log_p_snv + log_L_SNV1)
+                          + log10_sum_exp(log_p_err + log_L_ERR2, log_p_snv + log_L_SNV2);
 
-    double p_m2b = softmax(-e_a1 - e_b, ((A + B) * std::log10(fa1)) + ((C + D) * std::log10(fr1)));
-    double p_m2c = softmax(-e_a2 - e_c, ((A + C) * std::log10(fa2)) + ((B + D) * std::log10(fr2)));
+    // Posterior
+    const double diff = (log_L_M2 + std::log10(1.0 - prior_mnv))
+                      - (log_L_M1 + std::log10(prior_mnv));
 
-    double p_m2 = p_m2b + p_m2c;
-
-    double log_prior = std::log10(prior_mnv);
-    double log_not_prior = std::log10(1.0 - prior_mnv);
-
-    double f_p_m1 = p_m1 + log_prior;
-    double f_p_m2 = p_m2 + log_not_prior;
-    double diff = f_p_m2 - f_p_m1;
-
-    double post = 0.0;
-
-    if(diff > 100.0)
-    {
-        post = 0.0;
-    }
-    else if(diff < -100.0)
-    {
-        post = 1.0;
-    }
-    else
-    {
-        post = 1.0 / (1.0 + std::pow(10.0, diff));
-    }
-
-    return post;
+    if(diff >  300.0) return 0.0;
+    if(diff < -300.0) return 1.0;
+    return 1.0 / (1.0 + std::pow(10.0, diff));
 }
