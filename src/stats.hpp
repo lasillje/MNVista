@@ -25,5 +25,5 @@ float vaf_sd(const snv_window& variants, int num_snv, float* out_mean);
 
 double test_phi(int num_both, int num_a, int num_b, int num_none);
 double test_odds(int num_both, int num_a, int num_b, int num_none);
-double test_bayesian(mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
+double test_bayesian(mnv* cur_mnv, int num_both, int num_alt_1, int num_alt_2, int num_none,
                      double p_err, double prior_mnv);

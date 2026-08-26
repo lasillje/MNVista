@@ -265,14 +265,25 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
             std::erase_if(onlyMyReads, [&otherReads](read r) { return otherReads.contains(r); });
         }
 
-        float sum_quality = 0.0;
-        for(auto& read : onlyMyReads)
-        {
-            int q = (int)read.quality;
-            float base_qual = (float)q / 10.0f;
-            sum_quality += base_qual;
-        }
-
+        float discordant_quality = 0.0;
+        // for(auto& read : onlyMyReads)
+        // {
+            // int q = (int)read.quality;
+            // float base_qual = (float)q / 10.0f;
+            // sum_quality += base_qual;
+        // }
+		for(auto& read1 : onlyMyReads)
+		{
+			for(auto& read2 : s[i]->supporting_hashes)
+			{
+				if(read1.read_name == read2.read_name)
+				{
+					int q = (int)read2.quality;
+					discordant_quality += (float)q / 10.0f;
+				}
+			}
+		}
+		
         float concordant_quality = 0.0f;
         for(auto& read1 : intersect_sup)
         {
@@ -287,7 +298,7 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
         }
 
         out_mnv->qualities.push_back(concordant_quality);
-        out_mnv->discordant_qualities.push_back(sum_quality);
+        out_mnv->discordant_qualities.push_back(discordant_quality);
         out_mnv->discordant.push_back(onlyMyReads.size());
         numTotalSolo += onlyMyReads.size();
     }

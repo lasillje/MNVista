@@ -102,11 +102,13 @@ double test_phi(int num_both, int num_a, int num_b, int num_none)
     return static_cast<double>((numerator / denominator));
 }
 
+//log10 gamma (Stirling approx)
 double lgamma10(double z)
 {
     return std::lgamma(z) / M_LN10;
 }
 
+//Log sum exp helper for numerical stability
 double log10_sum_exp(double A, double B)
 {
     double M = std::max(A, B);
@@ -118,21 +120,22 @@ double log10_sum_exp(double A, double B)
 }
 
 
-double test_bayesian(mnv* cur_mnv, int num_both, int num_a, int num_b, int num_none,
+double test_bayesian(mnv* cur_mnv, int num_both, int num_alt_1, int num_alt_2, int num_none,
                      double p_err, double prior_mnv)
 {
+	// skip calculation if there are no reads in A anyways, or if somehow MNVs of size >= 2 were entered
     if(num_both == 0 || cur_mnv->qualities.size() < 2 || cur_mnv->discordant_qualities.size() < 2)
     {
         return 0.0;
     }
 
     const double A = (double)num_both; // alt at both positions
-    const double B = (double)num_a;    // alt at position 1 only
-    const double C = (double)num_b;    // alt at position 2 only
+    const double B = (double)num_alt_1; // alt at position 1 only
+    const double C = (double)num_alt_2; // alt at position 2 only
     const double D = (double)num_none; // ref at both positions
     const double R = A + B + C + D;
 
-    // accumulated Phred error scores, E_{G,n} = sum over reads in class G of Q_rn/10.
+    // accumulated Phred error scores
     const double E_A1 = cur_mnv->qualities[0];
     const double E_A2 = cur_mnv->qualities[1];
     const double E_B1 = cur_mnv->discordant_qualities[0];
@@ -142,13 +145,15 @@ double test_bayesian(mnv* cur_mnv, int num_both, int num_a, int num_b, int num_n
     const double fa = 1.0, fb = 1.0;
     const double logB0 = lgamma10(fa) + lgamma10(fb) - lgamma10(fa + fb);
 
-    // Model 1: both alts lie on one MNV haplotype
+    // Model 1: both alts lie on same MNV haplotype
     // L_M1 = 10^(-E_B1 - E_C2) * Beta(A + fa, R - A + fb) / Beta(fa, fb)
+	// Here in log space for numerical stability
     const double log_L_M1 = -E_B1 - E_C2
                           + lgamma10(A + fa) + lgamma10(R - A + fb) - lgamma10(R + fa + fb)
                           - logB0;
 
     // Model 2: both positions are independent
+	// numerical sanity checks for p_err
     const double log_p_err = (p_err <= 0.0)  ? -1.0e300 : std::log10(p_err);
     const double log_p_snv = (p_err >= 1.0)  ? -1.0e300 : std::log10(1.0 - p_err);
 
@@ -163,10 +168,11 @@ double test_bayesian(mnv* cur_mnv, int num_both, int num_a, int num_b, int num_n
     const double log_L_M2 = log10_sum_exp(log_p_err + log_L_ERR1, log_p_snv + log_L_SNV1)
                           + log10_sum_exp(log_p_err + log_L_ERR2, log_p_snv + log_L_SNV2);
 
-    // Posterior
+    // Posterior also in log space
     const double diff = (log_L_M2 + std::log10(1.0 - prior_mnv))
                       - (log_L_M1 + std::log10(prior_mnv));
-
+	
+	// Max value clamp for numerical stability/ prevent overflow 
     if(diff >  300.0) return 0.0;
     if(diff < -300.0) return 1.0;
     return 1.0 / (1.0 + std::pow(10.0, diff));
