@@ -60,20 +60,31 @@ struct run_params
     float min_vaf;
     bool verbose;
     bool skip_filtered;
+	bool keep_duplicates;
 };
-struct read
+
+struct observation
+{
+	unsigned char best_qual;
+	bool alt;
+	bool conflict;
+	int tmpl_start;
+	int tmpl_end;
+};
+
+struct read_obs
 {
     std::string read_name;
     unsigned char quality;
     int start_pos;
     int end_pos;
 
-    bool operator<(read const& other) const noexcept
+    bool operator<(read_obs const& other) const noexcept
     {
         return read_name < other.read_name;
     }
 
-    bool operator==(read const& other) const noexcept
+    bool operator==(read_obs const& other) const noexcept
     {
         return read_name == other.read_name;
     }
@@ -81,8 +92,8 @@ struct read
 
 struct snv
 {
-    std::vector<read> supporting_hashes;
-    std::vector<read> covering_hashes;
+    std::vector<read_obs> supporting_hashes;
+    std::vector<read_obs> covering_hashes;
     // std::vector<unsigned int> base_qualities;
     std::string chrom_name;
     double base_qual_sum;
@@ -91,6 +102,7 @@ struct snv
     unsigned int pos;
     unsigned int mrd;
     unsigned int dp;
+	unsigned int mate_conflicts;
     float vaf;
     char ref;
     char alt;

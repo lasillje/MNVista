@@ -27,6 +27,9 @@
 #include <chrono>
 #include <functional>
 #include <mutex>
+#include <unordered_map>
+#include <algorithm>
+#include <cstdlib>
 
 #include "mnv.hpp"
 #include "stats.hpp"
@@ -200,16 +203,16 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
     std::sort(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
     std::sort(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
 
-    std::set<read> intersect_sup(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
-    std::set<read> intersect_cov(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
+    std::set<read_obs> intersect_sup(s[0]->supporting_hashes.begin(), s[0]->supporting_hashes.end());
+    std::set<read_obs> intersect_cov(s[0]->covering_hashes.begin(), s[0]->covering_hashes.end());
 
     for(int i = 1; i < num_variants; i++)
     {
         std::sort(s[i]->covering_hashes.begin(), s[i]->covering_hashes.end());
         std::sort(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
 
-        std::set<read> temp_sup;
-        std::set<read> temp_cov;
+        std::set<read_obs> temp_sup;
+        std::set<read_obs> temp_cov;
 
         std::set_intersection(intersect_sup.begin(), intersect_sup.end(), s[i]->supporting_hashes.begin(),
                               s[i]->supporting_hashes.end(), std::inserter(temp_sup, temp_sup.begin()));
@@ -244,7 +247,7 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
                 max_pair_count = kv.second;
         }
 
-        out_mnv->dup_fraction = numMutated > 0 ? ((float)pos_pair_counts.size() / (float)numMutated) : 0.0f;
+        out_mnv->dup_fraction = numMutated > 0 ? 1.0f - ((float)pos_pair_counts.size() / (float)numMutated) : 0.0f;
         out_mnv->max_support_fraction = numMutated > 0 ? ((float)max_pair_count / (float)numMutated) : 0.0f;
     }
 
@@ -252,50 +255,34 @@ MNV_RESULT test_snv(const std::vector<snv*>& s, int num_variants, mnv* out_mnv)
 
     for(int i = 0; i < num_variants; i++)
     {
-        std::set<read> onlyMyReads(intersect_cov.begin(), intersect_cov.end());
-        std::set<read> myReads(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
+        std::set<read_obs> onlyMyReads(intersect_cov.begin(), intersect_cov.end());
+        std::set<read_obs> myReads(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
 
-        std::erase_if(onlyMyReads, [&myReads](read r) { return !myReads.contains(r); });
+        std::erase_if(onlyMyReads, [&myReads](read_obs r) { return !myReads.contains(r); });
 
         for(int j = 0; j < num_variants; j++)
         {
             if(j == i)
                 continue;
-            std::set<read> otherReads(s[j]->supporting_hashes.begin(), s[j]->supporting_hashes.end());
-            std::erase_if(onlyMyReads, [&otherReads](read r) { return otherReads.contains(r); });
+            std::set<read_obs> otherReads(s[j]->supporting_hashes.begin(), s[j]->supporting_hashes.end());
+            std::erase_if(onlyMyReads, [&otherReads](read_obs r) { return otherReads.contains(r); });
         }
 
-        float discordant_quality = 0.0;
-        // for(auto& read : onlyMyReads)
-        // {
-            // int q = (int)read.quality;
-            // float base_qual = (float)q / 10.0f;
-            // sum_quality += base_qual;
-        // }
-		for(auto& read1 : onlyMyReads)
+		const std::set<read_obs> sup_i(s[i]->supporting_hashes.begin(), s[i]->supporting_hashes.end());
+
+		float discordant_quality = 0.0f;
+		for(const auto& r : onlyMyReads)
 		{
-			for(auto& read2 : s[i]->supporting_hashes)
-			{
-				if(read1.read_name == read2.read_name)
-				{
-					int q = (int)read2.quality;
-					discordant_quality += (float)q / 10.0f;
-				}
-			}
+			if(auto it = sup_i.find(r); it != sup_i.end())
+				discordant_quality += (float)(int)it->quality / 10.0f;
 		}
-		
-        float concordant_quality = 0.0f;
-        for(auto& read1 : intersect_sup)
-        {
-            for(auto& read2 : s[i]->supporting_hashes)
-            {
-                if(read1.read_name == read2.read_name)
-                {
-                    int q = (int)read2.quality;
-                    concordant_quality += (float)q / 10.0f;
-                }
-            }
-        }
+
+		float concordant_quality = 0.0f;
+		for(const auto& r : intersect_sup)
+		{
+			if(auto it = sup_i.find(r); it != sup_i.end())
+				concordant_quality += (float)(int)it->quality / 10.0f;
+		}
 
         out_mnv->qualities.push_back(concordant_quality);
         out_mnv->discordant_qualities.push_back(discordant_quality);
@@ -607,7 +594,6 @@ int snv_relative_pos(bam1_t* b, int snv_pos)
 
 /*
     Loads reads for SNVs in a window
-    Reads are stored as an unsigned integer hash based on read name
     Read names should be unique!
 */
 void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int chrom_id, snv_window& window)
@@ -615,15 +601,12 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
     if(chrom_id < 0)
         return;
 
-    std::hash<std::string> hasher;
-
     bam1_t* bam_read = bam_init1();
-    int count = 0;
-    int dup_counter = 0;
     for(snv* v : window)
     {
         int pos = v->pos;
-
+		
+		v->mate_conflicts = 0;
         v->base_qual_sum = 0.0;
         v->base_qual_count = 0;
         v->loaded_reads = 1;
@@ -631,68 +614,103 @@ void load_window_reads(samFile* bam, bam_hdr_t* bam_hdr, hts_idx_t* bam_idx, int
         hts_itr_t* iter = sam_itr_queryi(bam_idx, chrom_id, pos, pos + 1);
         if(!iter)
             return;
+		
+		std::unordered_map<std::string, observation> by_template;
+		
         while(sam_itr_next(bam, iter, bam_read) >= 0)
         {
             if(bam_read->core.qual < settings.min_read_quality)
                 continue;
+			
+			const uint16_t skip = BAM_FUNMAP | BAM_FSECONDARY | BAM_FSUPPLEMENTARY | BAM_FQCFAIL;
+			
+			if(bam_read->core.flag & skip)
+				continue;
+			if(!settings.keep_duplicates && (bam_read->core.flag & BAM_FDUP))
+				continue;
 
             int relative_pos = snv_relative_pos(bam_read, pos);
             if(relative_pos < 0 || relative_pos >= bam_read->core.l_qseq)
                 continue;
 
             std::string read_name = bam_get_qname(bam_read);
+			uint8_t q = bam_get_qual(bam_read)[relative_pos];
+			char base = seq_nt16_str[bam_seqi(bam_get_seq(bam_read), relative_pos)];
+			bool is_alt = (base == v->alt);
+			
+			int lo = bam_read->core.pos;
+			int hi = bam_endpos(bam_read);
+			if((bam_read->core.flag & BAM_FPAIRED) && bam_read->core.isize != 0)
+			{
+				lo = std::min<int>(bam_read->core.pos, bam_read->core.mpos);
+				hi = lo + std::abs(bam_read->core.isize);
+			}
 
-            uint8_t* seq = bam_get_seq(bam_read);
+			auto [it, inserted] = by_template.try_emplace(
+				read_name, observation{ q, is_alt, false, lo, hi });
 
-            uint8_t* quals = bam_get_qual(bam_read);
-            uint8_t q = quals[relative_pos];
+			if(!inserted)
+			{
+				observation& o = it->second;
+				if(o.alt != is_alt)
+				{
+                // The two mates of one molecule disagree at this base, so one
+                // of them is wrong
+					o.conflict = true;
+					o.alt = false;
+				}
+				else
+				{
+                // Agreement between mates, take the
+                // better quality
+   
+                o.best_qual = std::max(o.best_qual, q);
+				}
+				o.tmpl_start = std::min(o.tmpl_start, lo);
+				o.tmpl_end = std::max(o.tmpl_end, hi);
+			}
+		}
 
-            read r;
-            r.read_name = read_name;
-            r.quality = q;
-            r.start_pos = bam_read->core.pos;
-            r.end_pos = bam_endpos(bam_read);
-            // unsigned int index = (unsigned int)hasher(read_name);
+		v->covering_hashes.reserve(by_template.size());
+		for(const auto& [name, o] : by_template)
+		{
+			read_obs r;
+			r.read_name = name;
+			r.quality = o.best_qual;
+			r.start_pos = o.tmpl_start;
+			r.end_pos = o.tmpl_end;
 
-            v->covering_hashes.push_back(r);
-            char base = seq_nt16_str[bam_seqi(seq, relative_pos)];
+			v->covering_hashes.push_back(r);
 
-            if(base == v->alt)
-            {
-                if(q != 255)
-                {
-                    v->base_qual_sum += ((float)(int)q / 10);
-                    v->base_qual_count++;
-                }
-                v->supporting_hashes.push_back(r);
-            }
+			if(o.alt)
+			{
+				if(o.best_qual != 255)
+				{
+					v->base_qual_sum += ((float)(int)o.best_qual / 10);
+					v->base_qual_count++;
+				}
+				v->supporting_hashes.push_back(r);
+			}
+			if(o.conflict)
+				v->mate_conflicts++;
+		}
+		
+		if(settings.verbose)
+		{
+			if(v->mate_conflicts > 0)
+			{
+				log_info("SNV at " + std::to_string(chrom_id) + " - " + std::to_string(pos) + " has " + std::to_string(v->mate_conflicts) + " mate conflicts");
+			}
+		}
 
-            count++;
-        }
+		if(v->supporting_hashes.size() > 0 && v->covering_hashes.size() > 0)
+			v->vaf = (float)v->supporting_hashes.size() / (float)v->covering_hashes.size();
 
-        //   if(v->base_qualities.size() > 1)
-        //   {
-        //     std::sort(v->base_qualities.begin(), v->base_qualities.end());
-        //     int mid = v->base_qualities.size() / 2;
-        //     mid = (mid % 2 == 0 ? mid : mid - 1);
-        //     int qual = (int)v->base_qualities[mid];
-        //     v->phred_qual = ((float)-qual / 10.0f);
+		v->mrd = v->supporting_hashes.size();
+		v->dp = v->covering_hashes.size();
 
-        //   } else
-        //   {
-        //     v->phred_qual = 0.0f;
-        //   }
-
-        if(v->supporting_hashes.size() > 0 && v->covering_hashes.size() > 0)
-        {
-            v->vaf = (float)v->supporting_hashes.size() / (float)v->covering_hashes.size();
-        }
-
-        v->mrd = v->supporting_hashes.size();
-        v->dp = v->covering_hashes.size();
-
-        bam_itr_destroy(iter);
-    }
+		bam_itr_destroy(iter);
+	}
     bam_destroy1(bam_read);
 }
 
@@ -741,8 +759,8 @@ mnv_window parse_window(snv_window& window, mnv_window& filtered, std::string& i
         {
             v->supporting_hashes.clear();
             v->covering_hashes.clear();
-            v->supporting_hashes = std::vector<read>(0);
-            v->covering_hashes = std::vector<read>(0);
+            v->supporting_hashes = std::vector<read_obs>(0);
+            v->covering_hashes = std::vector<read_obs>(0);
         }
     }
 
@@ -907,6 +925,10 @@ int main(int argc, char* argv[])
         .default_value(0.5)
         .help("Prior probability under Model 2 that the alternate bases at a position are sequencing errors rather than a real SNV. Default 0.5 (equal odds).")
         .store_into(settings.bayes_p_err);
+	program.add_argument("-D", "--keep-duplicates")
+		.default_value(false)
+		.help("Count reads flagged as PCR/optical duplicates. Off by default")
+		.store_into(settings.keep_duplicates);
 
     try
     {
