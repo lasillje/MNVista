@@ -520,7 +520,7 @@ mnv_window parse_window_to_next_phase(mnv_window& mnv_w, snv_window& snv_w,
             {
                 int result = 0;
                 mnv m = make_next_phase(&mnv_w[i], snv_w[j], &result, pair_cache);
-                if(result == 2 && !settings.skip_filtered)
+                if(result == MNV_FAILED_FILTERS && !settings.skip_filtered)
                 {
                     filtered.push_back(m);
                 }
@@ -528,7 +528,11 @@ mnv_window parse_window_to_next_phase(mnv_window& mnv_w, snv_window& snv_w,
                 {
                     name_cache.insert(m.name);
                     m.window_id = window_id;
-                    output_mnv.push_back(m);
+					
+					if(result == MNV_SUCCESS)
+					{
+						output_mnv.push_back(m);
+					}
                 }
             }
         }

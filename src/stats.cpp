@@ -175,5 +175,6 @@ double test_bayesian(mnv* cur_mnv, int num_both, int num_alt_1, int num_alt_2, i
 	// Max value clamp for numerical stability/ prevent overflow 
     if(diff >  300.0) return 0.0;
     if(diff < -300.0) return 1.0;
+	
     return 1.0 / (1.0 + std::pow(10.0, diff));
 }
