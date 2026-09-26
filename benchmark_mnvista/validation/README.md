@@ -90,5 +90,3 @@ allele fractions (1e-4) are representable at all.
 | `calls/S<n>_<arm>.csv` | MNVista's passing calls, all 15 runs |
 | `calls/S<n>_<arm>.falsepos.txt` | The false positives, listed |
 | `logs/S<n>_<arm>.log` | MNVista run logs |
-
-There are no `missed` files because nothing was missed.
