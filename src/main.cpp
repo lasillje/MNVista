@@ -850,7 +850,7 @@ int main(int argc, char* argv[])
               "<output_dir><name>.vcf")
         .store_into(settings.out_name);
     program.add_argument("-M", "--max-mnv-size")
-        .default_value(3)
+        .default_value(-1)
         .help("Determines the maximum amount of SNVs that can be in an MNV. Set to 0 for dynamic sizing based on "
               "window size, however this might increase runtime substantially.")
         .store_into(settings.mnv_size);
@@ -868,11 +868,11 @@ int main(int argc, char* argv[])
               "paralellization.")
         .store_into(settings.num_threads);
     program.add_argument("-A", "--min-vaf-mnv")
-        .default_value(0.0001f)
+        .default_value(0.0000f)
         .help("Minimum VAF for an MNV to be considered. MNVs with a lower VAF than this will not be output.")
         .store_into(settings.min_vaf);
     program.add_argument("-S", "--min-vrd-snv")
-        .default_value(5)
+        .default_value(1)
         .help("Minimum VRD for a SNV to be considered. SNVs with a lower VRD than this will be filtered prior to MNV "
               "analysis.")
         .store_into(settings.min_mrd_snv);
@@ -891,7 +891,7 @@ int main(int argc, char* argv[])
               "analysis.")
         .store_into(settings.max_snv_vaf);
     program.add_argument("-B", "--min-bayesian")
-        .default_value(0.0)
+        .default_value(0.95)
         .help("Minimum bayesian probability score for an MNV to be considered. MNVs with a lower bayesian probability "
               "than the specified value will be filtered.")
         .store_into(settings.min_bayesian);
@@ -904,7 +904,7 @@ int main(int argc, char* argv[])
         .help("Path to a file containing a list of MNVs that should be ignored while making MNVs.")
         .store_into(settings.blacklist_path);
     program.add_argument("-R", "--read-length")
-        .default_value(100)
+        .default_value(150)
         .help("The maximum length in bp a read can be. SNVs will not be paired if their distance is larger than this "
               "value.")
         .store_into(settings.read_length);
@@ -913,7 +913,7 @@ int main(int argc, char* argv[])
         .help("The minimum Jaccard index value for an MNV to be considered.")
         .store_into(settings.jaccard);
     program.add_argument("-K", "--skip-filtered")
-        .default_value(false)
+        .default_value(true)
         .help("Don't save filtered MNVs, only keep and output MNVs that passed the tests.")
         .store_into(settings.skip_filtered);
     program.add_argument("-P", "--bayes-prior-mnv")

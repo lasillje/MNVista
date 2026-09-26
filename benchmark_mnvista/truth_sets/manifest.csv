@@ -1,0 +1,16 @@
+sample,arm,bed,vcf,mnv_csv,spiked_snvs,haplotypes,mnvs,source_bed,source_vcf
+S1,noise0,S1_noise0.bed,S1_noise0.vcf,S1_noise0_mnv.csv,1060,530,530,sample1_0.bed,067_0.vcf
+S1,noise1,S1_noise1.bed,S1_noise1.vcf,S1_noise1_mnv.csv,1178,634,544,sample1_1__NOISE_0.1.bed,067_1.vcf
+S1,noise10,S1_noise10.bed,S1_noise10.vcf,S1_noise10_mnv.csv,1917,1386,531,sample1_10__NOISE_0.1.bed,067_10.vcf
+S2,noise0,S2_noise0.bed,S2_noise0.vcf,S2_noise0_mnv.csv,1060,530,530,sample3_0.bed,224_0.vcf
+S2,noise1,S2_noise1.bed,S2_noise1.vcf,S2_noise1_mnv.csv,1163,626,537,sample3_1__NOISE_0.1.bed,224_1.vcf
+S2,noise10,S2_noise10.bed,S2_noise10.vcf,S2_noise10_mnv.csv,1897,1374,523,sample3_10__NOISE_0.1.bed,224_10.vcf
+S3,noise0,S3_noise0.bed,S3_noise0.vcf,S3_noise0_mnv.csv,1066,533,533,sample2_0.bed,227_0.vcf
+S3,noise1,S3_noise1.bed,S3_noise1.vcf,S3_noise1_mnv.csv,1158,623,535,sample2_1__NOISE_0.1.bed,227_1.vcf
+S3,noise10,S3_noise10.bed,S3_noise10.vcf,S3_noise10_mnv.csv,1943,1397,546,sample2_10__NOISE_0.1.bed,227_10.vcf
+S4,noise0,S4_noise0.bed,S4_noise0.vcf,S4_noise0_mnv.csv,1090,545,545,sample5_0.bed,238_0.vcf
+S4,noise1,S4_noise1.bed,S4_noise1.vcf,S4_noise1_mnv.csv,1164,628,536,sample5_1__NOISE_0.1.bed,238_1.vcf
+S4,noise10,S4_noise10.bed,S4_noise10.vcf,S4_noise10_mnv.csv,1888,1367,521,sample5_10__NOISE_0.1.bed,238_10.vcf
+S5,noise0,S5_noise0.bed,S5_noise0.vcf,S5_noise0_mnv.csv,1054,527,527,sample4_0.bed,250_0.vcf
+S5,noise1,S5_noise1.bed,S5_noise1.vcf,S5_noise1_mnv.csv,1149,617,532,sample4_1__NOISE_0.1.bed,250_1.vcf
+S5,noise10,S5_noise10.bed,S5_noise10.vcf,S5_noise10_mnv.csv,1924,1386,538,sample4_10__NOISE_0.1.bed,250_10.vcf

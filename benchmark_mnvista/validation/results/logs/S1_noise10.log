@@ -1,0 +1,80 @@
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r00.vcf ./parts/S1_noise10 -O r00 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 4 
+INFO: Found 194 total variants
+
+INFO: Found 1 windows for chr1
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 0). Total MNVs: 51, Total cached pairs: 5280
+INFO: Finished! Total execution time: 1.063313 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r01.vcf ./parts/S1_noise10 -O r01 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 4 
+INFO: Found 196 total variants
+
+INFO: Found 1 windows for chr2
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 1). Total MNVs: 56, Total cached pairs: 5556
+INFO: Finished! Total execution time: 1.100833 minute(s).
+INFO: /tmp/build/bin/mnvista spiked/S1_noise10.bam parts/S1_noise10/r02.vcf parts/S1_noise10 -O r02 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 185 total variants
+
+INFO: Found 1 windows for chr3
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 2). Total MNVs: 52, Total cached pairs: 4857
+INFO: Finished! Total execution time: 0.979778 minute(s).
+INFO: /tmp/build/bin/mnvista spiked/S1_noise10.bam parts/S1_noise10/r03.vcf parts/S1_noise10 -O r03 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 184 total variants
+
+INFO: Found 1 windows for chr3
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 2). Total MNVs: 48, Total cached pairs: 4915
+INFO: Finished! Total execution time: 1.015358 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r04.vcf ./parts/S1_noise10 -O r04 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 199 total variants
+
+INFO: Found 1 windows for chr5
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 3). Total MNVs: 57, Total cached pairs: 5903
+INFO: Finished! Total execution time: 1.231069 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r05.vcf ./parts/S1_noise10 -O r05 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 187 total variants
+
+INFO: Found 1 windows for chr9
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 4). Total MNVs: 51, Total cached pairs: 5033
+INFO: Finished! Total execution time: 1.062087 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r06.vcf ./parts/S1_noise10 -O r06 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 185 total variants
+
+INFO: Found 1 windows for chr12
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 5). Total MNVs: 52, Total cached pairs: 5064
+INFO: Finished! Total execution time: 1.153604 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r07.vcf ./parts/S1_noise10 -O r07 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 193 total variants
+
+INFO: Found 1 windows for chr12
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 5). Total MNVs: 52, Total cached pairs: 5595
+INFO: Finished! Total execution time: 1.132217 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r08.vcf ./parts/S1_noise10 -O r08 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 197 total variants
+
+INFO: Found 1 windows for chr16
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 6). Total MNVs: 56, Total cached pairs: 5491
+INFO: Finished! Total execution time: 1.210134 minute(s).
+INFO: /tmp/build/bin/mnvista ./spiked/S1_noise10.bam ./parts/S1_noise10/r09.vcf ./parts/S1_noise10 -O r09 --read-length 150 --read-quality 30 --max-mnv-size -1 --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95 --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001 --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1 --threads 1 
+INFO: Found 197 total variants
+
+INFO: Found 1 windows for chr16
+INFO: Created 1 total windows
+INFO: Starting processing of windows...
+INFO: Finished window 0(chr_id: 6). Total MNVs: 61, Total cached pairs: 5525
+INFO: Finished! Total execution time: 1.149846 minute(s).
