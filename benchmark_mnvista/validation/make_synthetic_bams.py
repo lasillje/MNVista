@@ -166,6 +166,13 @@ def main():
             open(out + ".done", "w").write(str(n))
             print(f"{sample} {gene}: {n:,} reads", flush=True)
 
+        final = os.path.join(out_dir, f"{sample}.bam")
+        if not os.path.exists(final) and all(
+                os.path.exists(os.path.join(out_dir, f"{sample}.part{i:02d}.bam.done"))
+                for i in range(len(regions))):
+            merge_chunks(out_dir, sample, len(regions))
+            print(f"{sample}: merged -> {final}", flush=True)
+
 
 def merge_chunks(out_dir, sample, n_parts):
     """Concatenate the per-region chunks into one coordinate-sorted BAM."""
