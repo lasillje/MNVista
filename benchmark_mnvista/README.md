@@ -139,18 +139,5 @@ is the ±10% VAF-jittered one, which is why those VAFs are not round numbers.
 
 ## 4. Reproducing the benchmark
 
-```bash
-# 1. spike the truth set into a patient BAM
-bamedit patient.bam truth_sets/beds/S1_noise0.bed S1_noise0.bam
-samtools index S1_noise0.bam
+See validation/README.md for a comprehensive guide on re-running the benchmark.
 
-# 2. run MNVista with the spiked BAM and candidate VCF of the spike-ins (see MNVista readme at the top-level directory).
-
-# 3. score against the MNV truth set
-#    truth_sets/mnv/S1_noise0_mnv.csv  one interval per true MNV
-#    truth_sets/beds/S1_noise0.bed  SNV-level truth, grouped by haplotype ID
-```
-
-A call is a true positive when its constituent SNV positions match a haplotype
-group in the BED. The `mnv/` CSV gives the truth set per MNV interval, which is the form used for the MNV level recall and precision
-reported in the manuscript.

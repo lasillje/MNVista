@@ -233,7 +233,7 @@ MNVista has 4 outputs:
 ## Benchmark data and reproduction
 
 The synthetic spike-in benchmark used in the paper is available in a separate
-repository folder, `benchmarking`. It contains the spiking tool (BamEdit),
+repository folder, `benchmark_mnvista`. It contains the spiking tool (BamEdit),
 the spike-in generator, the target regions, and the complete ground-truth call
 set for all 5 samples and all 3 noise levels.
 

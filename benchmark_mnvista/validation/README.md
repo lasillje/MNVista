@@ -68,14 +68,14 @@ in the real capture-panel BAMs, so the reads carry the same short,
 adapter-trimmed, heavily overlapping fragment structure rather than an idealised
 uniform layout:
 
-| | Real BAMs (measured) | Synthetic BAMs |
-|---|---|---|
-| Read length (median) | 90 bp | 84 bp |
-| Insert size (median) | 150 bp | 154 bp |
+| | Synthetic BAMs |
+|---|---|
+| Read length (median)  | 84 bp |
+| Insert size (median) | 154 bp |
 | MAPQ | 60 | 60 |
-| Base quality (median) | 37 | 37 |
-| Background non-reference rate | — | 2.8e-4 |
-| Depth over target regions | ~5,700–10,000x | ~18,100x |
+| Base quality (median) | 37 |
+| Background non-reference rate | 2.8e-4 |
+| Depth over target regions| ~18,100x |
 
 At 18,000x it puts a handful of erroneous
 reads under every position, so the caller is not being handed a noise-free
