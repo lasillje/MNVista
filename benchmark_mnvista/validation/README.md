@@ -10,6 +10,8 @@
 Nothing in this folder depend on patient data, or on any file that
 is not in this repository. 
 
+Note that the benchmark can take quite a while to complete in its entirety, as all sequence data has to be regenerated.
+
 ## Result
 
 **8,008 of 8,008 spiked MNVs recalled.**

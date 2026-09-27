@@ -16,30 +16,35 @@
 # Per-region calls finishes in ~ under a minute, for machines that
 # cannot hold a long job or are less powerful.
 
-set -euo pipefail
 
+set -euo pipefail
+ 
 WORK=${1:?work dir}
 REF=${2:?uppercased reference fasta}
-
+ 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUNDLE="$(dirname "$HERE")"
 BAMEDIT=${BAMEDIT:-bamedit}
 MNVISTA=${MNVISTA:-mnvista}
-BY_REGION=${BY_REGION:-1}
+# Set PYTHON if `python3` on PATH is not the interpreter that has pysam, for
+# example when pysam lives in a conda environment. Do not run this script with
+# sudo: sudo resets the environment and will use the system python instead.
+PYTHON=${PYTHON:-python3}
+BY_REGION=${BY_REGION:-0}
 JOBS=${JOBS:-1}
 THREADS=${THREADS:-4}
 REGIONS="$BUNDLE/spike_in_design/regions_se.bed"
-
+ 
 # MNVista settings
 MNV_ARGS=(--read-length 150 --read-quality 30 --max-mnv-size -1
           --bayes-prior-mnv 0.5 --bayes-p-error 0.5 --min-bayesian 0.95
           --min-phi 0 --min-jaccard 0 --min-vaf-mnv 0.000001
           --min-vrd-snv 1 --min-vrd-mnv 1 --min-vaf-snv 0 --max-vaf-snv 1)
-
+ 
 mkdir -p "$WORK/spiked" "$WORK/mnvista_out" "$WORK/parts"
-
-split_vcf() {   #If per-region is enables then split the VCF
-  python3 - "$WORK" "$1" "$REGIONS" <<'PY'
+ 
+split_vcf() {   #If per-region is enables
+  "$PYTHON" - "$WORK" "$1" "$REGIONS" <<'PY'
 import os, sys
 work, name, regions = sys.argv[1], sys.argv[2], sys.argv[3]
 vcf = f"{work}/spiked/{name}.vcf"
@@ -55,20 +60,32 @@ for i, r in enumerate(l.split() for l in open(regions)):
     open(f"{out}/r{i:02d}.vcf", "w").writelines(hdr + sub)
 PY
 }
-
+ 
 for S in S1 S2 S3 S4 S5; do
   for A in noise0 noise1 noise10; do
     N="${S}_${A}"
     [[ -f "$WORK/mnvista_out/$N.ok" ]] && continue
-
-    if [[ -f "$WORK/spiked/$N.bam" ]] && ! python3 -c "
+ 
+    if [[ -f "$WORK/spiked/$N.bam" ]] && ! "$PYTHON" -c "
 import pysam,sys
 pysam.AlignmentFile(sys.argv[1]).close()" "$WORK/spiked/$N.bam" 2>/dev/null; then
       echo "[spike] $N: previous output truncated, redoing"
       rm -f "$WORK/spiked/$N.bam" "$WORK/spiked/$N.bam.bai" "$WORK/spiked/$N.vcf"
     fi
-
+ 
     if [[ ! -f "$WORK/spiked/$N.bam" || ! -f "$WORK/spiked/$N.vcf" ]]; then
+      # Fail here rather than inside BamEdit, which reports the missing BAM once
+      # per thread and then writes a VCF full of VRD = -1.
+      if [[ ! -f "$WORK/bams/$S.bam" ]]; then
+        echo "ERROR: $WORK/bams/$S.bam not found." >&2
+        if compgen -G "$WORK/bams/$S.part*.bam" > /dev/null; then
+          echo "       Per-region chunks are present but were never merged." >&2
+          echo "       Rerun make_synthetic_bams.py to merge them." >&2
+        else
+          echo "       Run make_synthetic_bams.py first." >&2
+        fi
+        exit 1
+      fi
       echo "[spike] $N"
       rm -f "$WORK/spiked/$N.bam" "$WORK/spiked/$N.bam.bai" "$WORK/spiked/$N.vcf"
       # -S 1 is BamEdit's default seed read selection is deterministic.
@@ -76,8 +93,8 @@ pysam.AlignmentFile(sys.argv[1]).close()" "$WORK/spiked/$N.bam" 2>/dev/null; the
                  "$WORK/spiked" -O "$N" -S 1 -T 4
     fi
     [[ -f "$WORK/spiked/$N.bam.bai" ]] || \
-      python3 -c "import pysam,sys;pysam.index(sys.argv[1])" "$WORK/spiked/$N.bam"
-
+      "$PYTHON" -c "import pysam,sys;pysam.index(sys.argv[1])" "$WORK/spiked/$N.bam"
+ 
     if [[ "$BY_REGION" == "1" ]]; then
       [[ -d "$WORK/parts/$N" ]] || split_vcf "$N"
       # Regions are independent, so run $JOBS of them 
@@ -94,7 +111,7 @@ pysam.AlignmentFile(sys.argv[1]).close()" "$WORK/spiked/$N.bam" 2>/dev/null; the
         R=$(basename "$V" .vcf)
         grep -q "Finished!" "$WORK/parts/$N/$R.log"
       done
-      python3 - "$WORK/parts/$N" "$WORK/mnvista_out/$N.csv" <<'PY'
+      "$PYTHON" - "$WORK/parts/$N" "$WORK/mnvista_out/$N.csv" <<'PY'
 import glob, os, sys
 src, dst = sys.argv[1], sys.argv[2]
 parts = sorted(p for p in glob.glob(os.path.join(src, "r*.csv"))
@@ -114,11 +131,11 @@ PY
                  --threads "$THREADS"
       grep -q "Finished!" "$WORK/mnvista_out/$N.log"
     fi
-
+ 
     touch "$WORK/mnvista_out/$N.ok"
     rm -f "$WORK/spiked/$N.bam" "$WORK/spiked/$N.bam.bai"
   done
 done
-
-python3 "$HERE/score_calls.py" "$BUNDLE/truth_sets/mnv" \
+ 
+"$PYTHON" "$HERE/score_calls.py" "$BUNDLE/truth_sets/mnv" \
         "$WORK/mnvista_out" "$WORK/RESULTS.csv"
