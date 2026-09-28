@@ -48,6 +48,13 @@ python make_synthetic_bams.py hg38.upper.fa ../spike_in_design/regions_se.bed wo
 # 3. spike, call, score
 BAMEDIT=/path/to/bamedit MNVISTA=/path/to/mnvista \
   ./run_validation.sh work hg38.upper.fa
+
+# 4. If you did not build the binaries in another location, i.e. MNVista at
+#    MNVista/bin/MNVista and BamEdit at benchmark_mnvista/bamedit/bin/bamedit,
+#    and you run this from benchmark_mnvista/validation/, you can use:
+
+BAMEDIT=../bamedit/bin/bamedit MNVISTA=../../bin/MNVista \
+  ./run_validation.sh work hg38.upper.fa
 ```
 
 `run_validation.sh` is resumable and deletes each spiked BAM once it has been
